@@ -1,5 +1,5 @@
 import {
-  DEFAULTS, TYPES, renderWave, morphWave, unsignedLUT, makeArduinoText,
+  DEFAULTS, TYPES, renderWave, morphWave, normalizeHeadroom, makeArduinoText,
   makeSignedText, makePCM, makeWav, safePrefix, zipFiles, spectrum
 } from "./engine.js";
 
@@ -43,19 +43,67 @@ const configs={
   minDac:{name:"Min DAC value",min:0,max:65535,step:1,unit:""},
   maxDac:{name:"Max DAC value",min:0,max:65535,step:1,unit:""}
 };
-const builtinPresets={
-  "Default LFO":{mode:"lfo",params:{}},
-  "Clean Sine":{mode:"osc",params:{coreType:"Sine",modAmplitude:0,waveFold:0,drive:0}},
-  "Classic LFO Triangle":{mode:"lfo",params:{coreType:"Triangle",modAmplitude:0.5,modType:"Sine"}},
-  "Folded Glass":{mode:"osc",params:{coreType:"Sine",waveFold:1.9,drive:.28,modAmplitude:0,phaseDist:.12}},
-  "Sync Screamer":{mode:"osc",params:{coreType:"Ramp Down",syncRatio:3,phaseDist:.55,drive:.55,modAmplitude:0}},
-  "Harmonic Garden":{mode:"osc",params:{coreType:"Additive",modAmplitude:.12,phaseDist:0,waveFold:.3}},
-  "Crooked Triangle":{mode:"osc",params:{coreType:"Triangle",modAmplitude:0,pivotX:.3,pivotY:.6,bend:-.5}}
+// Presets are organised as musical starting points; all remain editable.
+const presetGroups={
+  "LFO · Essentials":{
+    "Default LFO":{mode:"lfo",params:{}},
+    "Pure Sine LFO":{mode:"lfo",params:{coreType:"Sine",modAmplitude:0}},
+    "Triangle LFO":{mode:"lfo",params:{coreType:"Triangle",modAmplitude:0}},
+    "Square LFO":{mode:"lfo",params:{coreType:"Square",modAmplitude:0}},
+    "Rising Ramp":{mode:"lfo",params:{coreType:"Ramp Up",modAmplitude:0,rampSteepness:1}},
+    "Falling Ramp":{mode:"lfo",params:{coreType:"Ramp Down",modAmplitude:0,rampSteepness:1}},
+    "Slow Pulse":{mode:"lfo",params:{coreType:"Square",dutyCycle:.18,modType:"Square",modAmplitude:.2,modFreq:.25}},
+    "LFO Triangle Shimmer":{mode:"lfo",params:{coreType:"Triangle",modAmplitude:.5,modType:"Sine",modFreq:4}}
+  },
+  "LFO · Modulated":{
+    "Breathing Sine":{mode:"lfo",params:{coreType:"Sine",modType:"Sine",modAmplitude:.26,modFreq:2,modFadeIn:2,modFadeOut:2}},
+    "Ripple Ramp":{mode:"lfo",params:{coreType:"Ramp Up",modType:"Sine",modAmplitude:.24,modFreq:6}},
+    "Square Chopper":{mode:"lfo",params:{coreType:"Sine",modType:"Square",modAmplitude:.55,modFreq:4,dutyCycle:.22}},
+    "Triangular Drift":{mode:"lfo",params:{coreType:"Triangle",modType:"Triangle",modAmplitude:.38,modFreq:1.5}},
+    "Curved Rise":{mode:"lfo",params:{coreType:"Ramp Up",rampSteepness:3.8,modAmplitude:0}},
+    "Curved Fall":{mode:"lfo",params:{coreType:"Ramp Down",rampSteepness:4.7,modAmplitude:0}}
+  },
+  "Oscillator · Fundamentals":{
+    "Clean Sine":{mode:"osc",params:{coreType:"Sine",modAmplitude:0}},
+    "Pure Triangle":{mode:"osc",params:{coreType:"Triangle",modAmplitude:0}},
+    "Bright Saw":{mode:"osc",params:{coreType:"Ramp Up",modAmplitude:0}},
+    "Hollow Square":{mode:"osc",params:{coreType:"Square",modAmplitude:0}},
+    "Warm Saturation":{mode:"osc",params:{coreType:"Sine",modAmplitude:0,drive:.38}},
+    "Crooked Triangle":{mode:"osc",params:{coreType:"Triangle",modAmplitude:0,pivotX:.3,pivotY:.6,bend:-.5}}
+  },
+  "Oscillator · Wavefolding":{
+    "Folded Glass":{mode:"osc",params:{coreType:"Sine",waveFold:1.9,drive:.28,modAmplitude:0,phaseDist:.12}},
+    "Metal Ribbon":{mode:"osc",params:{coreType:"Triangle",waveFold:2.7,drive:.36,modAmplitude:0,pivotX:.34}},
+    "Velvet Fold":{mode:"osc",params:{coreType:"Sine",waveFold:.72,drive:.14,modAmplitude:0}},
+    "Folding Edge":{mode:"osc",params:{coreType:"Ramp Down",waveFold:1.5,drive:.45,modAmplitude:0}},
+    "Glass Cathedral":{mode:"osc",params:{coreType:"Sine",waveFold:3.2,drive:.27,phaseDist:.2,modAmplitude:0}},
+    "Broken Mirror":{mode:"osc",params:{coreType:"Triangle",waveFold:3.75,bend:-.55,modAmplitude:0}}
+  },
+  "Oscillator · Phase & Sync":{
+    "Sync Screamer":{mode:"osc",params:{coreType:"Ramp Down",syncRatio:3,phaseDist:.55,drive:.55,modAmplitude:0}},
+    "Double Cycle":{mode:"osc",params:{coreType:"Sine",syncRatio:2,modAmplitude:0}},
+    "Skewed Sine":{mode:"osc",params:{coreType:"Sine",pivotX:.19,modAmplitude:0}},
+    "Phase Runner":{mode:"osc",params:{coreType:"Sine",phaseDist:.85,modAmplitude:0}},
+    "Warp Engine":{mode:"osc",params:{coreType:"Triangle",pivotX:.73,pivotY:-.35,bend:.68,phaseDist:.35,modAmplitude:0}},
+    "Triple Sync":{mode:"osc",params:{coreType:"Ramp Up",syncRatio:3,drive:.2,modAmplitude:0}}
+  },
+  "Oscillator · Harmonic & Textural":{
+    "Harmonic Garden":{mode:"osc",params:{coreType:"Additive",modAmplitude:.12,phaseDist:0,waveFold:.3}},
+    "Odd Harmonics":{mode:"osc",params:{coreType:"Additive",harmonics:[1,0,.5,0,.28,0,.17,0],modAmplitude:0}},
+    "Organ Stack":{mode:"osc",params:{coreType:"Additive",harmonics:[1,.7,.45,.2,.12,.1,.08,.04],modAmplitude:0}},
+    "Airy Fifths":{mode:"osc",params:{coreType:"Additive",harmonics:[1,0,.05,.7,0,.2,0,.08],modAmplitude:0}},
+    "Circuit Buzz":{mode:"osc",params:{coreType:"Additive",harmonics:[.7,.8,.6,.7,.55,.4,.45,.3],drive:.33,modAmplitude:0}},
+    "Shimmering Coil":{mode:"osc",params:{coreType:"Additive",harmonics:[1,.12,.7,.08,.56,.05,.4,.03],waveFold:.4,modAmplitude:0}}
+  }
 };
+const builtinPresets=Object.assign({},...Object.values(presetGroups));
 
+let toastTimer;
 function msg(text,error=false){
-  $("status").textContent=text;
-  $("status").classList.toggle("error",error);
+  const toast=$("status");
+  toast.textContent=text;toast.classList.toggle("error",error);
+  toast.classList.add("visible");clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toast.classList.remove("visible"),error?6000:2500);
 }
 function showError(error){console.error(error);msg(error instanceof Error?error.message:String(error),true);}
 function clampNumber(n,min,max){return Math.min(max,Math.max(min,n));}
@@ -142,6 +190,7 @@ function updateInputs(){
   $("removeDc").checked=!!p.removeDc;$("bandLimit").checked=!!p.bandLimit;
   $("bitDepth").value=String(p.bitDepth);$("wavRate").value=String(p.wavRate);
   $("baseName").value=p.baseName;
+  $("headroomMode").value=p.headroomMode||"auto";
 }
 function historySave(key){
   const now=performance.now();
@@ -168,14 +217,22 @@ function requestRender(){
   requestAnimationFrame(()=>{renderPending=false;try{
     wave=renderWave(p,mode);
     if(mode==="osc"&&$("morphEnabled").checked&&capturedA&&capturedB&&capturedA.length===wave.length&&capturedB.length===wave.length)
-      wave=morphWave(capturedA,capturedB,p.morphPosition);
+      wave=applyMorphHeadroom(morphWave(capturedA,capturedB,p.morphPosition));
     drawScope($("waveCanvas"),wave,false);drawSpectrum();
-    $("waveStats").textContent=`${wave.length.toLocaleString()} SAMPLES • ${p.coreFreq} CYCLE${p.coreFreq===1?"":"S"}`;
+    const waveMin=Math.min(...wave.length<=16384?wave:[0]),waveMax=Math.max(...wave.length<=16384?wave:[0]);
+    const vpp=Math.round(Math.max(0,waveMax-waveMin)*50);
+    $("waveStats").textContent=`${wave.length.toLocaleString()} SAMPLES · ${vpp}% SWING`;
     $("waveDescription").textContent=`${p.coreType.toUpperCase()} • ${mode==="lfo"?"CLASSIC LFO":"AUDIO OSCILLATOR"}`;
     $("audioHz").innerHTML=`${p.previewHz} <small>Hz</small>`;
     $("audioNote").textContent=noteFromHz(p.previewHz);
     if(playing){clearTimeout(audioRefresh);audioRefresh=setTimeout(refreshAudio,120);}
   }catch(e){showError(e);}});
+}
+function applyMorphHeadroom(values){
+  if(p.headroomMode==="full")return normalizeHeadroom(values,"full");
+  if(p.headroomMode==="audio")return normalizeHeadroom(values,"peak");
+  // Auto and Bank Preserve deliberately keep the relative frame levels.
+  return values;
 }
 function noteFromHz(hz){
   const midi=Math.round(69+12*Math.log2(hz/440));
@@ -267,6 +324,24 @@ async function withExport(action){
     afterExport(ident+" exported",result!==false);
   }catch(e){showError(e);}
 }
+async function allExport(ident){
+  const entries=[
+    [`${ident}.txt`,makeArduinoText(wave,p,ident)],
+    [`${ident}.png`,await blobBytes(await imageBlob(wave,`LUT Deluxe • ${ident}`))],
+    [`${ident}.wav`,makeWav(wave,p.previewHz,p.wavRate)],
+    [`${ident}.pcm`,makePCM(wave)],
+    [`${ident}_pcm.txt`,makeSignedText(wave,ident)],
+    [`${ident}_settings.json`,JSON.stringify({app:"LUT Deluxe",version:1,mode,settings:p},null,2)]
+  ];
+  if(capturedA&&capturedB&&capturedA.length===capturedB.length&&capturedA.length===p.lutSize){
+    for(let j=0;j<p.bankFrames;j++){
+      const frame=applyMorphHeadroom(morphWave(capturedA,capturedB,j/(p.bankFrames-1)));
+      const name=`${ident}_frame_${String(j+1).padStart(2,"0")}`;
+      entries.push([`bank/${name}.txt`,makeArduinoText(frame,p,name)]);
+    }
+  }
+  return downloadBlob(zipFiles(entries),`${ident}_all.zip`);
+}
 async function pairedExport(ident){
   const txt=makeArduinoText(wave,p,ident);
   const png=await blobBytes(await imageBlob(wave,`LUT Deluxe • ${ident}`));
@@ -288,7 +363,7 @@ async function exportBank(){
     if(capturedA.length!==capturedB.length||capturedA.length!==p.lutSize)throw Error("Wave A and B must match the current LUT size. Capture them again.");
     const ident=exportIdentifier(),entries=[],num=p.bankFrames;
     for(let j=0;j<num;j++){
-      const frame=morphWave(capturedA,capturedB,j/(num-1));
+      const frame=applyMorphHeadroom(morphWave(capturedA,capturedB,j/(num-1)));
       const frameName=`${ident}_frame_${String(j+1).padStart(2,"0")}`;
       entries.push([`${frameName}.txt`,makeArduinoText(frame,p,frameName)]);
     }
@@ -296,7 +371,7 @@ async function exportBank(){
     const ctx=sheet.getContext("2d");ctx.fillStyle="#0e1926";ctx.fillRect(0,0,sheet.width,sheet.height);
     ctx.fillStyle="#e0faff";ctx.font="bold 28px system-ui";ctx.fillText(`LUT Deluxe — ${ident} Morph Bank`,30,42);
     for(let j=0;j<num;j++){
-      const frame=morphWave(capturedA,capturedB,j/(num-1));
+      const frame=applyMorphHeadroom(morphWave(capturedA,capturedB,j/(num-1)));
       const y=72+j*50;if(y+40>sheet.height)break;
       ctx.fillStyle="#7da4b9";ctx.font="14px monospace";ctx.fillText(String(j+1).padStart(2,"0"),20,y+15);
       ctx.strokeStyle="#24c8d0";ctx.lineWidth=1.6;ctx.beginPath();
@@ -382,19 +457,37 @@ function loadPreset(obj){
   if(![8,10,12,16].includes(Number(next.bitDepth)))next.bitDepth=12;
   next.minDac=Math.max(0,Math.min(next.minDac,2**next.bitDepth-2));
   next.maxDac=clampNumber(next.maxDac,next.minDac+1,2**next.bitDepth-1);
+  if(!["auto","full","audio","bank"].includes(next.headroomMode))next.headroomMode="auto";
   next.baseName=safePrefix(next.baseName);
   historySave("preset");p=next;capturedA=null;capturedB=null;
   $("morphEnabled").checked=false;$("captureStatus").textContent="A: —   B: —";
   updateInputs();setMode(obj.mode==="lfo"?"lfo":"osc");
 }
 function refreshPresets(){
-  const el=$("presetSelect");el.innerHTML="";
-  for(const n of Object.keys(builtinPresets)){
-    const o=document.createElement("option");o.value=`builtin:${n}`;o.textContent=`★ ${n}`;el.appendChild(o);
+  const category=$("presetCategory"),previous=category.value;
+  category.innerHTML="";
+  for(const value of ["All categories",...Object.keys(presetGroups),"My presets"]){
+    const option=document.createElement("option");option.value=value;option.textContent=value;
+    category.appendChild(option);
   }
-  for(const n of Object.keys(savedPresets).sort()){
-    const o=document.createElement("option");o.value=`user:${n}`;o.textContent=`● ${n}`;el.appendChild(o);
+  category.value=Array.from(category.options).some(o=>o.value===previous)?previous:"All categories";
+  const el=$("presetSelect"),selected=el.value;el.innerHTML="";
+  for(const [name,presets] of Object.entries(presetGroups)){
+    if(category.value!=="All categories"&&category.value!==name)continue;
+    const group=document.createElement("optgroup");group.label=name;
+    for(const preset of Object.keys(presets)){
+      const option=document.createElement("option");option.value=`builtin:${preset}`;option.textContent=preset;group.appendChild(option);
+    }
+    el.appendChild(group);
   }
+  if(category.value==="All categories"||category.value==="My presets"){
+    const group=document.createElement("optgroup");group.label="My presets";
+    for(const name of Object.keys(savedPresets).sort()){
+      const option=document.createElement("option");option.value=`user:${name}`;option.textContent=name;group.appendChild(option);
+    }
+    el.appendChild(group);
+  }
+  if(Array.from(el.options).some(o=>o.value===selected))el.value=selected;
 }
 function bindActions(){
   $("coreType").addEventListener("change",e=>setValue("coreType",e.target.value));
@@ -410,6 +503,8 @@ function bindActions(){
     updateInputs();requestRender();
   });
   $("wavRate").addEventListener("change",e=>setValue("wavRate",Number(e.target.value)));
+  $("headroomMode").addEventListener("change",e=>setValue("headroomMode",e.target.value));
+  $("presetCategory").addEventListener("change",refreshPresets);
   $("baseName").addEventListener("input",e=>{p.baseName=e.target.value;});
   $("baseName").addEventListener("blur",()=>{p.baseName=safePrefix(p.baseName);updateInputs();});
   $("modeOsc").addEventListener("click",()=>setMode("osc"));
@@ -438,6 +533,8 @@ function bindActions(){
   $("captureBBtn").addEventListener("click",()=>capture("B"));
   $("morphEnabled").addEventListener("change",requestRender);
   $("bankDownloadBtn").addEventListener("click",exportBank);
+  $("quickDownloadAllBtn").addEventListener("click",()=>withExport(allExport));
+  $("exportAllBtn").addEventListener("click",()=>withExport(allExport));
   $("exportZipBtn").addEventListener("click",()=>withExport(pairedExport));
   $("exportTxtBtn").addEventListener("click",()=>withExport(singleText));
   $("exportPngBtn").addEventListener("click",()=>withExport(singlePng));

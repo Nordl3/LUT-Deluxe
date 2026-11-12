@@ -15,7 +15,7 @@
   <header class="app-header">
     <div class="brand-wrap">
       <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M2 24C10 24 8 8 15 8S20 40 25 40s7-32 12-32 4 16 9 16" stroke="currentColor" stroke-width="3.3" stroke-linecap="round"/><circle cx="39" cy="10" r="3" fill="#be8dfc"/></svg></div>
-      <div><div class="brand">LUT <span>Deluxe</span><b class="brand-dot">.</b></div><div class="brand-caption">WAVEFORM LABORATORY <span class="caption-version">v1.0</span></div></div>
+      <div><div class="brand">LUT <span>Deluxe</span><b class="brand-dot">.</b></div><div class="brand-caption">WAVEFORM LABORATORY <span class="caption-version">v1.1</span></div></div>
     </div>
     <div class="header-right"><span class="running-pill"><span></span> 100% LOCAL DSP</span>
       <button type="button" class="quiet-button" id="undoBtn" title="Undo last control change">↶ Undo</button>
@@ -30,7 +30,7 @@
         <button type="button" class="mode-btn active" id="modeLfo" aria-pressed="true"><span class="mode-icon">∿</span><span><b>LFO Mode</b><small>CLASSIC &amp; SIMPLE</small></span></button>
       </div>
 
-      <section class="side-panel">
+      <section class="side-panel" id="coreControls">
         <div class="section-title"><span class="section-dot cyan"></span><h2>CORE OSCILLATOR</h2><span class="section-index">01</span></div>
         <label class="field-row"><span class="field-label">Waveform</span><select id="coreType"><option>Sine</option><option>Triangle</option><option>Square</option><option>Ramp Up</option><option>Ramp Down</option><option>Additive</option></select></label>
         <div data-control="coreFreq"></div>
@@ -38,7 +38,7 @@
         <div data-control="rampSteepness"></div>
       </section>
 
-      <section class="side-panel">
+      <section class="side-panel" id="modControls">
         <div class="section-title"><span class="section-dot purple"></span><h2>MODULATION</h2><span class="section-index">02</span></div>
         <label class="field-row"><span class="field-label">Modulator</span><select id="modType"><option>Sine</option><option>Triangle</option><option>Square</option><option>Ramp Up</option><option>Ramp Down</option></select></label>
         <div data-control="modFreq"></div>
@@ -49,7 +49,7 @@
         <div data-control="dutyCycle"></div>
       </section>
 
-      <section class="side-panel advanced-only">
+      <section class="side-panel advanced-only" id="geometryControls">
         <div class="section-title"><span class="section-dot gold"></span><h2>WAVE GEOMETRY</h2><span class="section-index">03</span></div>
         <p class="section-help">Drag the amber handle on the main waveform display, or set exact numbers below.</p>
         <div data-control="pivotX"></div>
@@ -58,7 +58,7 @@
         <div data-control="syncRatio"></div>
       </section>
 
-      <section class="side-panel advanced-only">
+      <section class="side-panel advanced-only" id="shapingControls">
         <div class="section-title"><span class="section-dot coral"></span><h2>SHAPING &amp; FOLDING</h2><span class="section-index">04</span></div>
         <div data-control="waveFold"></div>
         <div data-control="bend"></div>
@@ -80,19 +80,44 @@
         <div class="workspace-actions"><button type="button" class="quiet-button" id="randomBtn">⚄ Randomise</button><button type="button" class="quiet-button" id="savePresetBtn">＋ Save preset</button></div>
       </div>
 
-      <section class="panel wave-panel">
-        <div class="panel-heading"><div><span class="eyebrow">OSCILLOSCOPE</span><h2>Waveform Explorer</h2></div><div class="panel-meta" id="waveStats">4096 SAMPLES • 1 CYCLE</div></div>
+      <nav class="quick-nav" aria-label="Jump to workspace sections">
+        <a href="#wavePanel">Scope</a>
+        <a href="#coreControls">Core</a>
+        <a href="#modControls">Modulation</a>
+        <a class="advanced-only" href="#geometryControls">Geometry</a>
+        <a class="advanced-only" href="#shapingControls">Shaping</a>
+        <a class="advanced-only" href="#harmonicsSection">Harmonics</a>
+        <a href="#auditionSection">Listen</a>
+        <a class="advanced-only" href="#morphSection">Morphing</a>
+        <a href="#presetSection">Presets</a>
+        <a href="#exportSection">Export</a>
+      </nav>
+
+      <section class="panel wave-panel" id="wavePanel">
+        <div class="panel-heading scope-heading"><div><span class="eyebrow">OSCILLOSCOPE</span><h2>Waveform Explorer</h2></div>
+          <div class="scope-utilities">
+            <label class="headroom-control" for="headroomMode">HEADROOM
+              <select id="headroomMode" title="Auto: LFO full range, oscillator maximum safe peak, morph banks preserve relative amplitudes">
+                <option value="auto">Auto · smart scaling</option>
+                <option value="full">Full Vpp · fit to range</option>
+                <option value="audio">Audio · max safe peak</option>
+                <option value="bank">Bank · preserve morph levels</option>
+              </select>
+            </label>
+            <button type="button" id="quickDownloadAllBtn" class="primary-button compact-primary">↓ Download All</button>
+          </div>
+        </div>
         <div class="wave-canvas-wrap"><canvas id="waveCanvas" width="1200" height="370" aria-label="Waveform display; drag orange handle to change X/Y warp" role="img"></canvas><span class="scope-label scope-top">+1.00</span><span class="scope-label scope-mid">0.00</span><span class="scope-label scope-bottom">−1.00</span><span class="scope-badge" id="scopeBadge">DRAG TO WARP ↗</span></div>
-        <div class="wave-foot"><span id="waveDescription">SINE • AUDIO OSCILLATOR</span><span>TIME →</span></div>
+        <div class="wave-foot"><span id="waveDescription">SINE • AUDIO OSCILLATOR</span><span id="waveStats">4096 SAMPLES • 1 CYCLE</span></div>
       </section>
 
       <div class="analysis-row">
-        <section class="panel spectrum-panel">
+        <section class="panel spectrum-panel" id="spectrumSection">
           <div class="panel-heading"><div><span class="eyebrow">FREQUENCY DOMAIN</span><h2>Harmonic Spectrum</h2></div><span class="panel-meta">FFT · RELATIVE dB</span></div>
           <canvas id="spectrumCanvas" width="700" height="205" aria-label="Harmonic spectrum"></canvas>
           <div class="mini-footer"><span>FUNDAMENTAL</span><span>HARMONICS →</span></div>
         </section>
-        <section class="panel audition-panel">
+        <section class="panel audition-panel" id="auditionSection">
           <div class="panel-heading"><div><span class="eyebrow">LIVE AUDITION</span><h2>Listen to your wave</h2></div><span class="audio-indicator" id="audioIndicator">● STOPPED</span></div>
           <div class="audition-row"><button class="play-button" type="button" id="playBtn" aria-label="Play oscillator">▶</button><div class="audition-detail"><b id="audioNote">A4</b><small>TABLE LOOP</small></div><div class="audition-hz" id="audioHz">220 <small>Hz</small></div></div>
           <div data-control="previewHz"></div>
@@ -110,7 +135,7 @@
         <button type="button" class="secondary-button full-button" id="bankDownloadBtn">↓ Download wavetable bank (.zip)</button>
       </section>
 
-      <section class="panel export-panel">
+      <section class="panel export-panel" id="exportSection">
         <div class="panel-heading"><div><span class="eyebrow">OUTPUT ENGINE</span><h2>Export Laboratory</h2></div><div class="export-ready"><span></span> READY TO EXPORT</div></div>
         <div class="export-inputs">
           <div class="export-item"><label for="baseName">File / array prefix</label><input id="baseName" type="text" value="myLUT" maxlength="36" spellcheck="false"></div>
@@ -121,20 +146,21 @@
           <div class="export-item"><label for="wavRate">WAV sample rate</label><select id="wavRate"><option value="22050">22,050 Hz</option><option value="44100" selected>44,100 Hz</option><option value="48000">48,000 Hz</option></select></div>
         </div>
         <div class="export-actions">
-          <button type="button" class="primary-button" id="exportZipBtn">↓ Download LUT + PNG (.zip)</button>
+          <button type="button" class="primary-button" id="exportAllBtn">↓ Download All (.zip)</button>
+          <button type="button" class="secondary-button" id="exportZipBtn">↓ LUT + PNG (.zip)</button>
           <button type="button" class="secondary-button" id="exportTxtBtn">↓ Arduino LUT .txt</button>
           <button type="button" class="secondary-button" id="exportPngBtn">↓ Waveform .png</button>
           <button type="button" class="secondary-button" id="exportWavBtn">↓ Audio .wav</button>
           <button type="button" class="secondary-button" id="exportPcmBtn">↓ Signed PCM .pcm</button>
           <button type="button" class="secondary-button" id="exportPcmTxtBtn">↓ Signed PCM .txt</button>
         </div>
-        <p class="section-help export-note">Legacy export: <code>const uint16_t myLUT_1[LUT_SIZE] = { ... };</code> with 10 integer values per line. Each export increments the file number; the ZIP keeps matching PNG and TXT names.</p>
-        <div id="status" class="status-line" role="status" aria-live="polite">Dial in your wave, then export. Everything happens on this device.</div>
+
       </section>
 
-      <section class="panel preset-panel">
+      <section class="panel preset-panel" id="presetSection">
         <div class="panel-heading"><div><span class="eyebrow">YOUR SOUND COLLECTION</span><h2>Presets &amp; Sharing</h2></div></div>
         <div class="preset-actions">
+          <select id="presetCategory" aria-label="Filter preset category"></select>
           <select id="presetSelect" aria-label="Choose preset"></select>
           <button type="button" class="secondary-button" id="loadPresetBtn">Load</button>
           <button type="button" class="secondary-button" id="exportPresetBtn">↓ Preset JSON</button>
@@ -147,5 +173,6 @@
       <footer><b>LUT Deluxe</b> · Waveform design for LFOs, Teensy oscillators and wavetable synthesis. <span>No account. No server. No tracking.</span></footer>
     </main>
   </div>
+  <div id="status" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

@@ -8,7 +8,7 @@ export const DEFAULTS = Object.freeze({
   pivotX:0.5,pivotY:0,phaseDist:0,syncRatio:1,waveFold:0,bend:0,drive:0,
   removeDc:true,bandLimit:false,harmonics:[1,0.4,0.22,0.1,0,0,0,0],
   previewHz:220,volume:0.22,morphPosition:0,bankFrames:8,
-  lutSize:4096,minDac:0,maxDac:3090,bitDepth:12,wavRate:44100,baseName:"myLUT"
+  lutSize:4096,minDac:0,maxDac:3090,bitDepth:12,wavRate:44100,baseName:"myLUT",headroomMode:"auto"
 });
 const TAU=Math.PI*2;
 const fract=x=>x-Math.floor(x);
@@ -66,6 +66,21 @@ function subtractDC(wave){
   if(peak>0){for(let i=0;i<wave.length;i++)wave[i]/=peak;}
   return wave;
 }
+export function normalizeHeadroom(values,style="peak"){
+  const result=Float32Array.from(values);
+  if(!result.length)return result;
+  let low=Infinity,high=-Infinity,peak=0;
+  for(const v of result){low=Math.min(low,v);high=Math.max(high,v);peak=Math.max(peak,Math.abs(v));}
+  if(style==="full"){
+    const span=high-low;
+    if(span<1e-12||!Number.isFinite(span)){result.fill(0);return result;}
+    for(let i=0;i<result.length;i++)result[i]=(result[i]-low)*2/span-1;
+  }else{
+    if(peak<1e-12||!Number.isFinite(peak)){result.fill(0);return result;}
+    for(let i=0;i<result.length;i++)result[i]/=peak;
+  }
+  return result;
+}
 export function renderWave(p,mode="osc"){
   const n=Math.floor(Number(p.lutSize));
   if(!Number.isFinite(n)||n<16||n>16384)throw Error("LUT size must be between 16 and 16,384 samples.");
@@ -85,7 +100,9 @@ export function renderWave(p,mode="osc"){
   for(let i=0;i<n;i++)wave[i]=shapeSample(wave[i],p);
   if(p.removeDc)wave=subtractDC(wave);
   if(p.bandLimit)wave=bandLimitWave(wave,p.previewHz,p.wavRate);
-  return wave;
+  // Once shaping/band-limiting has finished, reclaim unused peak headroom.
+  // LFO remains on the original full-range scaling path above.
+  return normalizeHeadroom(wave,p.headroomMode==="full"?"full":"peak");
 }
 export function morphWave(a,b,position){
   if(!a||!b||a.length!==b.length)throw Error("Capture A and B at the same LUT size before morphing.");

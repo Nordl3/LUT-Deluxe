@@ -14,3 +14,72 @@
 .piano-key.black{background:linear-gradient(#233a4f,#101d2e);border-color:#54728a;color:#bdcede;box-shadow:inset 0 -4px 0 #07131e}
 .piano-key:hover{filter:brightness(1.2)}.piano-key:active{background:#38d5d1;color:#061c21}
 @media(max-width:440px){.piano-key{font-size:8px}}
+
+
+/* v1.1: persistent scope, navigation, compact feedback and export toolbar */
+html{scroll-behavior:smooth}
+.quick-nav{
+  display:flex;align-items:center;gap:6px;overflow-x:auto;white-space:nowrap;
+  position:sticky;top:76px;z-index:9;padding:9px 10px;
+  background:#0b1420f5;border:1px solid #294055;border-radius:11px;
+  box-shadow:0 8px 26px #03070f75;scrollbar-width:thin
+}
+.quick-nav a{font-size:11px;font-weight:730;color:#a7c2d6;letter-spacing:.2px;
+  border-radius:7px;padding:7px 10px;flex-shrink:0}
+.quick-nav a:hover,.quick-nav a:focus-visible{background:#224052;color:#70f8ee}
+.wave-panel{
+  position:sticky;top:132px;z-index:8;background:#101c2af8;
+  box-shadow:0 16px 46px #030711d9;
+  padding:12px 16px 9px
+}
+.wave-panel .panel-heading{margin-bottom:9px}
+.wave-panel .panel-heading h2{font-size:15px}
+.wave-panel .eyebrow{margin-bottom:2px}
+.wave-panel .wave-foot{padding-top:6px}
+#waveCanvas{height:clamp(156px,23vh,245px)}
+.scope-heading{flex-wrap:wrap}
+.scope-utilities{display:flex;gap:9px;align-items:flex-end;flex-wrap:wrap}
+.headroom-control{font-size:9px;font-weight:780;letter-spacing:.8px;color:#8fafc3;display:flex;
+  flex-direction:column;gap:4px}
+.headroom-control select{min-height:35px;max-width:240px;padding:6px 9px;background:#0b1623;
+  color:#d7f4f4;border:1px solid #365269;border-radius:7px;font-size:12px;letter-spacing:0}
+.compact-primary{min-height:35px;padding:7px 13px;white-space:nowrap;font-size:12px}
+#coreControls,#modControls,#geometryControls,#shapingControls,#harmonicsSection,
+#spectrumSection,#auditionSection,#morphSection,#exportSection,#presetSection{
+  scroll-margin-top:440px
+}
+.preset-actions #presetCategory{min-width:170px;flex:0 1 230px}
+.preset-actions #presetSelect{flex:2 1 240px}
+.export-actions #exportAllBtn{grid-column:span 2}
+.toast{position:fixed;bottom:20px;right:20px;z-index:40;max-width:min(420px,calc(100vw - 40px));
+  padding:12px 18px;border:1px solid #2c767d;border-radius:10px;
+  background:#0b2630f7;color:#a7f8ee;font-size:12px;
+  box-shadow:0 18px 45px #020810ab;opacity:0;transform:translateY(10px);
+  transition:opacity .24s,transform .24s;pointer-events:none;visibility:hidden}
+.toast.visible{opacity:1;transform:translateY(0);visibility:visible}
+.toast.error{background:#2b1520;border-color:#9a4357;color:#ffc0cb}
+@media(max-width:1150px){
+  .scope-utilities{width:100%;justify-content:space-between}
+  .headroom-control select{max-width:190px}
+  #waveCanvas{height:190px}
+  .wave-panel{top:132px}
+}
+@media(max-width:700px){
+  .quick-nav{top:0;padding:7px;z-index:9}
+  .wave-panel{top:53px;z-index:8}
+  #waveCanvas{height:160px}
+  .scope-utilities{gap:6px}
+  .headroom-control select{max-width:190px}
+  .wave-panel .scope-heading{margin-bottom:7px}
+  .wave-panel .panel-heading h2{font-size:13px}
+  .export-actions #exportAllBtn{grid-column:1/-1}
+  .preset-actions #presetCategory,.preset-actions #presetSelect{flex:1 1 100%}
+  .wave-panel .wave-foot{font-size:9px}
+}
+@media(max-width:440px){
+  .scope-utilities{width:100%;justify-content:space-between}
+  .headroom-control select{max-width:175px}
+  .compact-primary{font-size:11px;padding:7px}
+  #waveCanvas{height:128px}
+  .wave-panel{padding:10px;top:50px}
+}

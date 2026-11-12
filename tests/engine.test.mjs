@@ -4,7 +4,7 @@ import {readFileSync} from "node:fs";
 import {inflateRawSync} from "node:zlib";
 import {
   DEFAULTS, coreSample, modSample, renderWave, unsignedLUT, makeArduinoText,
-  makeSignedText, makePCM, makeWav, spectrum, zipFiles, morphWave
+  makeSignedText, makePCM, makeWav, spectrum, zipFiles, morphWave, normalizeHeadroom
 } from "../engine.js";
 
 function p(overrides={}){return {...DEFAULTS, harmonics:[...DEFAULTS.harmonics],...overrides};}
@@ -80,4 +80,29 @@ test("LUT Deluxe default LFO settings match published baseline",()=>{
   const wave=renderWave(p(),"lfo");
   assert.equal(wave.length,4096);
   assert.ok(wave.every(Number.isFinite));
+});
+
+test("headroom strategies scale peaks without data loss or invented clipping",()=>{
+  const asymmetric=Float32Array.from([-.25,0,.5,.25]);
+  const full=normalizeHeadroom(asymmetric,"full");
+  const peak=normalizeHeadroom(asymmetric,"peak");
+  assert.ok(Math.abs(Math.min(...full)+1)<1e-6);
+  assert.ok(Math.abs(Math.max(...full)-1)<1e-6);
+  assert.ok(Math.abs(peak[0]+.5)<1e-6);
+  assert.ok(Math.abs(peak[2]-1)<1e-6);
+  assert.ok(normalizeHeadroom(new Float32Array(20),"full").every(v=>v===0));
+  assert.ok(normalizeHeadroom(new Float32Array(20),"peak").every(v=>v===0));
+});
+
+test("oscillator reclaims headroom while LFO defaults remain full swing",()=>{
+  const params=p({modAmplitude:0,waveFold:2,drive:.35,pivotX:.27,lutSize:1024});
+  const wave=renderWave(params,"osc");
+  assert.ok(wave.every(Number.isFinite));
+  assert.ok(Math.abs(Math.max(...wave.map(Math.abs))-1)<.00001);
+  const full=renderWave({...params,headroomMode:"full"},"osc");
+  assert.ok(Math.abs(Math.max(...full)-1)<.00001);
+  assert.ok(Math.abs(Math.min(...full)+1)<.00001);
+  const lfo=renderWave(params,"lfo");
+  assert.ok(Math.abs(Math.max(...lfo)-1)<.00001);
+  assert.ok(Math.abs(Math.min(...lfo)+1)<.00001);
 });

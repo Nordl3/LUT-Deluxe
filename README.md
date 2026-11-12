@@ -1,5 +1,7 @@
 # LUT Deluxe
 
+**Version 1.1 — Waveform and workflow update**
+
 **[▶ LAUNCH LUT DELUXE — OPEN THE LIVE WAVEFORM LAB](https://nordl3.github.io/LUT-Deluxe/)**
 
 [GitHub Pages](https://nordl3.github.io/LUT-Deluxe/) · [Source repository](https://github.com/Nordl3/LUT-Deluxe)
@@ -13,9 +15,12 @@ LUT Deluxe is a browser-based waveform design laboratory for Teensy, Arduino, an
 - **Sound and analysis:** Live browser audio preview, keyboard, configurable repeat frequency, and harmonic spectrum.
 - **Wavetable morphing:** Capture A and B and export interpolated multi-frame banks.
 - **Exports:** Teensy/Arduino `const uint16_t name[LUT_SIZE]` LUTs (10 truncated integers per row), waveform PNG, matching TXT+PNG ZIP, signed PCM, WAV preview, and wavetable banks.
-- **Presets:** Built-in presets, browser-local saves, and JSON import/export. Numeric text inputs accompany sliders.
+- **Presets:** 38 built-in sounds organized into LFO, wavefolding, sync, harmonic, and other categories, plus browser-local saves and JSON import/export. Numeric text inputs accompany sliders.
+- **Pinned oscilloscope and section navigation:** Scope remains visible while scrolling through controls on desktop; quick links jump to shaping, audition, presets, exports and more.
+- **Headroom options:** Auto (full-range LFO, peak-safe oscillator, coherent morph), Full Vpp, Audio Peak, and Bank Preserve. Oscillator audio processing reclaims unused peak headroom after shaping and filtering.
+- **Download All:** One ZIP with matching Arduino LUT, waveform PNG, audio WAV, raw signed PCM, signed PCM text, and settings JSON. If A/B captures of matching length exist, wavetable frame TXT files are included too. Individual download formats remain available.
 
-**Default state:** LFO Mode, sine core, 1 cycle/table, 0 phase, sine modulation at 0.25 cycles/table with 0 depth, 4096 samples, 12-bit output, DAC 0–3090, audio preview at 220 Hz, and output prefix `myLUT`. Reset restores this default state.
+**Default state:** LFO Mode, sine core, 1 cycle/table, 0 phase, sine modulation at 0.25 cycles/table with 0 depth, 4096 samples, 12-bit output, DAC 0–3090, audio preview at 220 Hz, output prefix `myLUT`, and automatic headroom. Reset restores these settings.
 
 ## Publish on GitHub Pages
 
@@ -42,8 +47,11 @@ Run that command in the folder containing `index.html`, then visit [http://local
 ## Export notes
 
 - The Arduino array includes the literal `[LUT_SIZE]`. Define `LUT_SIZE` in your sketch to match the number of exported samples.
-- Each export increments a number in this browser's local storage. ZIP exports contain the `.txt` and `.png` files with the **same basename**.
-- A WAV export is an audition clip, whereas raw signed PCM contains a single-cycle wavetable.
+- Each export increments a number in this browser's local storage. The paired ZIP and Download All ZIP contain matching `.txt` and `.png` basenames.
+- Full-range headroom maps the minimum and maximum waveform samples to the configured DAC extremes; it can introduce a DC bias in asymmetric audio waves. Peak-safe headroom maximizes absolute peak without adding DC.
+- In the normal Auto mode, a morph between captured waves is not renormalized at each frame, helping avoid unwanted amplitude pumping. Choose another headroom strategy explicitly if required.
+- A WAV export is a two-second audition clip with beginning/end fades, whereas raw signed PCM contains a single-cycle wavetable.
+- **Sampler mapping is a planned feature, not part of v1.1**. The WAV preview files are not yet pitched, loop-ready multisample libraries. SFZ instrument maps and Ableton-focused key/velocity export will be developed separately.
 - Audio-rate distorted waves may alias. The available band-limit processing is tied to the chosen preview frequency and is **not** a replacement for a multi-resolution, pitch-aware wavetable bank.
 - The optional `removeDc` checkbox affects Oscillator Lab; LFO mode keeps historical waveform scaling.
 - Browser-local saved presets and export counts are not shared across devices. Use JSON import/export for portability.
