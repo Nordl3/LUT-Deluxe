@@ -1,6 +1,6 @@
 /* Offline shell cache — increment CACHE_VERSION on each deployed release. */
-const CACHE_VERSION="lut-deluxe-v1.1.0";
-const ASSETS=["./","./index.html","./styles.css","./engine.js","./app.js","./manifest.webmanifest","./icon.svg"];
+const CACHE_VERSION="lut-deluxe-v1.2.1";
+const ASSETS=["./","./index.html","./styles.css?v=1.2.1","./engine.js?v=1.2.1","./app.js?v=1.2.1","./manifest.webmanifest","./icon.svg"];
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_VERSION).then(cache=>cache.addAll(ASSETS)).then(()=>self.skipWaiting()));
 });

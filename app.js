@@ -1,7 +1,7 @@
 import {
   DEFAULTS, TYPES, renderWave, morphWave, normalizeHeadroom, makeArduinoText,
   makeSignedText, makePCM, makeWav, safePrefix, zipFiles, spectrum
-} from "./engine.js";
+} from "./engine.js?v=1.2.1";
 
 const $=id=>document.getElementById(id);
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -190,7 +190,7 @@ function updateInputs(){
   $("removeDc").checked=!!p.removeDc;$("bandLimit").checked=!!p.bandLimit;
   $("bitDepth").value=String(p.bitDepth);$("wavRate").value=String(p.wavRate);
   $("baseName").value=p.baseName;
-  $("headroomMode").value=p.headroomMode||"auto";
+  $("dacCaution").hidden=!(p.maxDac>4095);
 }
 function historySave(key){
   const now=performance.now();
@@ -209,7 +209,11 @@ function setMode(next){
   $("modeOsc").classList.toggle("active",mode==="osc");$("modeLfo").classList.toggle("active",mode==="lfo");
   $("modeOsc").setAttribute("aria-pressed",String(mode==="osc"));$("modeLfo").setAttribute("aria-pressed",String(mode==="lfo"));
   $("workspaceTitle").textContent=mode==="lfo"?"Classic LFO Workshop":"Oscillator Laboratory";
-  $("workspaceDesc").textContent=mode==="lfo"?"Your original LUT generator — straightforward, familiar, ready for Teensy.":"Sculpt a single cycle, explore its harmonics, and export it for your synth.";
+  $("workspaceDesc").textContent=mode==="lfo"?"Shape, modulate and export classic LFO tables.":"Sculpt a single cycle, explore its harmonics, and export it for your synth.";
+
+  $("scopeModeToggle").textContent=mode==="lfo"?"↗ Open Oscillator Lab":"∿ Use LFO Mode";
+  $("scopeModeToggle").setAttribute("aria-label",mode==="lfo"?"Switch to advanced Oscillator Lab":"Switch to simple LFO Mode");
+  $("lfoAdvancedHint").hidden=mode!=="lfo";
   requestRender();
 }
 function requestRender(){
@@ -239,6 +243,15 @@ function noteFromHz(hz){
   return ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"][((midi%12)+12)%12]+(Math.floor(midi/12)-1);
 }
 function drawScope(canvas,wave,forExport=false,title="LUT Deluxe • Waveform Laboratory"){
+  if(!forExport){
+    const rect=canvas.getBoundingClientRect();
+    if(rect.width>0&&rect.height>0){
+      const dpr=Math.min(window.devicePixelRatio||1,2);
+      const width=Math.max(2,Math.round(rect.width*dpr));
+      const height=Math.max(2,Math.round(rect.height*dpr));
+      if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
+    }
+  }
   const ctx=canvas.getContext("2d"),w=canvas.width,h=canvas.height;
   ctx.fillStyle="#0c1825";ctx.fillRect(0,0,w,h);
   const padX=forExport?56:0,padTop=forExport?110:0,padBot=forExport?74:0;
@@ -454,7 +467,7 @@ function loadPreset(obj){
   }
   if(!TYPES.includes(next.coreType))next.coreType="Sine";
   if(!TYPES.slice(0,5).includes(next.modType))next.modType="Sine";
-  if(![8,10,12,16].includes(Number(next.bitDepth)))next.bitDepth=12;
+  if(![8,10,12,16].includes(Number(next.bitDepth)))next.bitDepth=16;
   next.minDac=Math.max(0,Math.min(next.minDac,2**next.bitDepth-2));
   next.maxDac=clampNumber(next.maxDac,next.minDac+1,2**next.bitDepth-1);
   if(!["auto","full","audio","bank"].includes(next.headroomMode))next.headroomMode="auto";
@@ -489,6 +502,73 @@ function refreshPresets(){
   }
   if(Array.from(el.options).some(o=>o.value===selected))el.value=selected;
 }
+
+// Keep the waveform visible while browsing controls.
+// On phones the scope is the FIRST item, preceding sidebar controls.
+// On desktop the scope docks in a fixed area to the right of the sidebar.
+function initFloatingScope(){
+  const shell=document.querySelector(".app-shell");
+  const sidebar=document.querySelector(".sidebar");
+  const workspace=document.querySelector(".workspace");
+  const scope=$("wavePanel");
+  const intro=document.querySelector(".workspace-top");
+  const nav=document.querySelector(".quick-nav");
+  const spacer=document.createElement("div");
+  spacer.className="scope-spacer";
+  let lastMobile=null;
+  let raf=0;
+
+  function layout(){
+    const mobile=window.matchMedia("(max-width: 819px)").matches;
+
+    if(mobile!==lastMobile){
+      // Move nodes rather than duplicating anything. This preserves event handlers.
+      if(mobile){
+        shell.insertBefore(scope,sidebar);
+        shell.insertBefore(intro,sidebar);
+        shell.insertBefore(nav,sidebar);
+      }else{
+        workspace.prepend(spacer);
+        spacer.after(scope);
+        scope.after(intro);
+        intro.after(nav);
+      }
+      lastMobile=mobile;
+    }
+
+    scope.classList.toggle("scope-docked",!mobile);
+    spacer.hidden=mobile;
+    scope.style.removeProperty("left");
+    scope.style.removeProperty("top");
+    scope.style.removeProperty("width");
+
+    if(mobile){
+      spacer.style.height="0px";
+    }else{
+      const bounds=workspace.getBoundingClientRect();
+      const style=getComputedStyle(workspace);
+      const header=document.querySelector(".app-header").getBoundingClientRect();
+      const left=bounds.left+parseFloat(style.paddingLeft);
+      const width=bounds.width-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight);
+      scope.style.left=`${Math.round(left)}px`;
+      scope.style.width=`${Math.round(width)}px`;
+      scope.style.top=`${Math.round(header.height+8)}px`;
+      spacer.style.height=`${Math.ceil(scope.getBoundingClientRect().height+12)}px`;
+    }
+    requestRender();
+  }
+  const schedule=()=>{
+    if(raf)return;
+    raf=requestAnimationFrame(()=>{raf=0;layout();});
+  };
+  window.addEventListener("resize",schedule,{passive:true});
+  window.addEventListener("orientationchange",schedule,{passive:true});
+  if(window.ResizeObserver){
+    const observer=new ResizeObserver(schedule);
+    observer.observe(scope);
+  }
+  layout();
+}
 function bindActions(){
   $("coreType").addEventListener("change",e=>setValue("coreType",e.target.value));
   $("modType").addEventListener("change",e=>setValue("modType",e.target.value));
@@ -503,12 +583,13 @@ function bindActions(){
     updateInputs();requestRender();
   });
   $("wavRate").addEventListener("change",e=>setValue("wavRate",Number(e.target.value)));
-  $("headroomMode").addEventListener("change",e=>setValue("headroomMode",e.target.value));
   $("presetCategory").addEventListener("change",refreshPresets);
   $("baseName").addEventListener("input",e=>{p.baseName=e.target.value;});
   $("baseName").addEventListener("blur",()=>{p.baseName=safePrefix(p.baseName);updateInputs();});
   $("modeOsc").addEventListener("click",()=>setMode("osc"));
   $("modeLfo").addEventListener("click",()=>setMode("lfo"));
+  $("scopeModeToggle").addEventListener("click",()=>setMode(mode==="lfo"?"osc":"lfo"));
+  $("hintOpenOsc").addEventListener("click",()=>setMode("osc"));
   $("playBtn").addEventListener("click",()=>playing?stopAudio():startAudio());
   $("undoBtn").addEventListener("click",()=>{
     if(!history.length){msg("Nothing to undo yet.");return;}
@@ -533,8 +614,6 @@ function bindActions(){
   $("captureBBtn").addEventListener("click",()=>capture("B"));
   $("morphEnabled").addEventListener("change",requestRender);
   $("bankDownloadBtn").addEventListener("click",exportBank);
-  $("quickDownloadAllBtn").addEventListener("click",()=>withExport(allExport));
-  $("exportAllBtn").addEventListener("click",()=>withExport(allExport));
   $("exportZipBtn").addEventListener("click",()=>withExport(pairedExport));
   $("exportTxtBtn").addEventListener("click",()=>withExport(singleText));
   $("exportPngBtn").addEventListener("click",()=>withExport(singlePng));
@@ -548,13 +627,20 @@ function bindActions(){
     storage.set("lutdeluxe_presets",savedPresets);refreshPresets();
     $("presetSelect").value=`user:${name.trim().slice(0,50)}`;msg(`Preset '${name.trim()}' saved in this browser.`);
   });
-  $("loadPresetBtn").addEventListener("click",()=>{
-    try{const [kind,...parts]=$("presetSelect").value.split(":"),name=parts.join(":");
-      if(kind==="builtin")loadPreset({...builtinPresets[name],params:{...clone(DEFAULTS),...builtinPresets[name].params}});
-      else loadPreset(savedPresets[name]);
-      msg(`Loaded '${name}'.`);
-    }catch(e){showError(e);}
-  });
+  function applySelectedPreset(){
+    try {
+      const value=$("presetSelect").value;
+      if(!value) return;
+      const separator=value.indexOf(":");
+      const kind=value.slice(0,separator),name=value.slice(separator+1);
+      const preset=kind==="builtin"?builtinPresets[name]:kind==="user"?savedPresets[name]:null;
+      if(!preset) throw Error("That preset could not be found. Choose another.");
+      loadPreset(preset);
+      msg(`Preset applied: ${name}`);
+    } catch(e) {showError(e);}
+  }
+  $("loadPresetBtn").addEventListener("click",applySelectedPreset);
+  $("presetSelect").addEventListener("change",applySelectedPreset);
   $("exportPresetBtn").addEventListener("click",async()=>{
     try{
       const json=JSON.stringify({app:"LUT Deluxe",version:1,mode,settings:p},null,2);
@@ -574,7 +660,7 @@ function bindActions(){
   const end=()=>{dragging=false;};canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);
   window.addEventListener("pagehide",stopAudio);
 }
-createControls();bindActions();refreshPresets();updateInputs();setMode("lfo");
+createControls();bindActions();refreshPresets();updateInputs();setMode("lfo");initFloatingScope();
 if("serviceWorker" in navigator && location.protocol!=="file:"){
   window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 }

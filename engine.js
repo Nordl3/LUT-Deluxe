@@ -8,7 +8,7 @@ export const DEFAULTS = Object.freeze({
   pivotX:0.5,pivotY:0,phaseDist:0,syncRatio:1,waveFold:0,bend:0,drive:0,
   removeDc:true,bandLimit:false,harmonics:[1,0.4,0.22,0.1,0,0,0,0],
   previewHz:220,volume:0.22,morphPosition:0,bankFrames:8,
-  lutSize:4096,minDac:0,maxDac:3090,bitDepth:12,wavRate:44100,baseName:"myLUT",headroomMode:"auto"
+  lutSize:4096,minDac:0,maxDac:4096,bitDepth:16,wavRate:44100,baseName:"myLUT",headroomMode:"auto"
 });
 const TAU=Math.PI*2;
 const fract=x=>x-Math.floor(x);

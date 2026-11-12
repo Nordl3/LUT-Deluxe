@@ -75,7 +75,8 @@ test("LUT Deluxe default LFO settings match published baseline",()=>{
   assert.equal(DEFAULTS.modAmplitude,0);
   assert.equal(DEFAULTS.lutSize,4096);
   assert.equal(DEFAULTS.minDac,0);
-  assert.equal(DEFAULTS.maxDac,3090);
+  assert.equal(DEFAULTS.maxDac,4096);
+  assert.equal(DEFAULTS.bitDepth,16);
   assert.equal(DEFAULTS.baseName,"myLUT");
   const wave=renderWave(p(),"lfo");
   assert.equal(wave.length,4096);

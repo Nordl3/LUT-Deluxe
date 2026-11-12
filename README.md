@@ -1,6 +1,6 @@
 # LUT Deluxe
 
-**Version 1.1 — Waveform and workflow update**
+**Version 1.2.1 — Responsive scope layout**
 
 **[▶ LAUNCH LUT DELUXE — OPEN THE LIVE WAVEFORM LAB](https://nordl3.github.io/LUT-Deluxe/)**
 
@@ -16,11 +16,10 @@ LUT Deluxe is a browser-based waveform design laboratory for Teensy, Arduino, an
 - **Wavetable morphing:** Capture A and B and export interpolated multi-frame banks.
 - **Exports:** Teensy/Arduino `const uint16_t name[LUT_SIZE]` LUTs (10 truncated integers per row), waveform PNG, matching TXT+PNG ZIP, signed PCM, WAV preview, and wavetable banks.
 - **Presets:** 38 built-in sounds organized into LFO, wavefolding, sync, harmonic, and other categories, plus browser-local saves and JSON import/export. Numeric text inputs accompany sliders.
-- **Pinned oscilloscope and section navigation:** Scope remains visible while scrolling through controls on desktop; quick links jump to shaping, audition, presets, exports and more.
-- **Headroom options:** Auto (full-range LFO, peak-safe oscillator, coherent morph), Full Vpp, Audio Peak, and Bank Preserve. Oscillator audio processing reclaims unused peak headroom after shaping and filtering.
-- **Download All:** One ZIP with matching Arduino LUT, waveform PNG, audio WAV, raw signed PCM, signed PCM text, and settings JSON. If A/B captures of matching length exist, wavetable frame TXT files are included too. Individual download formats remain available.
+- **Persistent oscilloscope:** The waveform stays visible while scrolling on desktop and mobile, and is the first panel on narrow screens. Navigation and controls scroll normally.
+- **Headroom:** Full-range scaling is applied in LFO mode; oscillator mode maximizes safe peak amplitude after optional DC removal. Morphing banks preserve relative frame amplitudes.
 
-**Default state:** LFO Mode, sine core, 1 cycle/table, 0 phase, sine modulation at 0.25 cycles/table with 0 depth, 4096 samples, 12-bit output, DAC 0–3090, audio preview at 220 Hz, output prefix `myLUT`, and automatic headroom. Reset restores these settings.
+**Default state:** LFO Mode, sine core, 1 cycle/table, 0 phase, sine modulation at 0.25 cycles/table with 0 depth, 4096 samples, 16-bit output container, DAC 0–4096, audio preview at 220 Hz and output prefix `myLUT`. Reset restores these settings.
 
 ## Publish on GitHub Pages
 
@@ -47,11 +46,11 @@ Run that command in the folder containing `index.html`, then visit [http://local
 ## Export notes
 
 - The Arduino array includes the literal `[LUT_SIZE]`. Define `LUT_SIZE` in your sketch to match the number of exported samples.
-- Each export increments a number in this browser's local storage. The paired ZIP and Download All ZIP contain matching `.txt` and `.png` basenames.
+- Each export increments a number in this browser's local storage. The paired LUT + PNG ZIP contains matching `.txt` and `.png` basenames.
 - Full-range headroom maps the minimum and maximum waveform samples to the configured DAC extremes; it can introduce a DC bias in asymmetric audio waves. Peak-safe headroom maximizes absolute peak without adding DC.
-- In the normal Auto mode, a morph between captured waves is not renormalized at each frame, helping avoid unwanted amplitude pumping. Choose another headroom strategy explicitly if required.
+- Morphing between captured waves preserves relative amplitude instead of independently renormalizing each intermediate frame.
 - A WAV export is a two-second audition clip with beginning/end fades, whereas raw signed PCM contains a single-cycle wavetable.
-- **Sampler mapping is a planned feature, not part of v1.1**. The WAV preview files are not yet pitched, loop-ready multisample libraries. SFZ instrument maps and Ableton-focused key/velocity export will be developed separately.
+- **Sampler mapping is a planned feature, not part of v1.2.1**. The WAV preview files are not yet pitched, loop-ready multisample libraries. SFZ instrument maps and Ableton-focused key/velocity export will be developed separately.
 - Audio-rate distorted waves may alias. The available band-limit processing is tied to the chosen preview frequency and is **not** a replacement for a multi-resolution, pitch-aware wavetable bank.
 - The optional `removeDc` checkbox affects Oscillator Lab; LFO mode keeps historical waveform scaling.
 - Browser-local saved presets and export counts are not shared across devices. Use JSON import/export for portability.
@@ -84,3 +83,14 @@ node --test tests/engine.test.mjs
 ```
 
 No build step, npm install, API key, or third-party runtime service is required for the published web app.
+
+## DAC value note
+
+The default maximum is **4096**, as requested. The default export resolution is **16-bit** so the unsigned output can represent 4096 without an invalid 12-bit value. A 12-bit DAC has valid integer output codes **0–4095**; if your Teensy writes straight to a 12-bit DAC, set the maximum to 4095 and select 12-bit output.
+
+## Updating GitHub Pages
+
+Upload the source files in this folder to the repository root, replacing existing versions.
+Commit the changes and let GitHub Pages redeploy. Asset URLs have a v1.2.1 cache-busting query parameter and the service worker cache version was advanced so browsers fetch the new UI.
+
+The optional desktop build recipe is in `desktop/`; generated `build/` and `dist/` folders should not be committed.

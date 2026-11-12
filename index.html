@@ -8,14 +8,14 @@
   <title>LUT Deluxe — Waveform Laboratory</title>
   <link rel="icon" href="./icon.svg" type="image/svg+xml">
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="stylesheet" href="./styles.css">
-  <script defer type="module" src="./app.js"></script>
+  <link rel="stylesheet" href="./styles.css?v=1.2.1">
+  <script defer type="module" src="./app.js?v=1.2.1"></script>
 </head>
 <body>
   <header class="app-header">
     <div class="brand-wrap">
       <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M2 24C10 24 8 8 15 8S20 40 25 40s7-32 12-32 4 16 9 16" stroke="currentColor" stroke-width="3.3" stroke-linecap="round"/><circle cx="39" cy="10" r="3" fill="#be8dfc"/></svg></div>
-      <div><div class="brand">LUT <span>Deluxe</span><b class="brand-dot">.</b></div><div class="brand-caption">WAVEFORM LABORATORY <span class="caption-version">v1.1</span></div></div>
+      <div><div class="brand">LUT <span>Deluxe</span><b class="brand-dot">.</b></div><div class="brand-caption">WAVEFORM LABORATORY <span class="caption-version">v1.2.1</span></div></div>
     </div>
     <div class="header-right"><span class="running-pill"><span></span> 100% LOCAL DSP</span>
       <button type="button" class="quiet-button" id="undoBtn" title="Undo last control change">↶ Undo</button>
@@ -28,6 +28,10 @@
       <div class="mode-group" role="group" aria-label="Waveform mode">
         <button type="button" class="mode-btn" id="modeOsc" aria-pressed="false"><span class="mode-icon">⌁</span><span><b>Oscillator Lab</b><small>FULL SYNTHESIS ENGINE</small></span></button>
         <button type="button" class="mode-btn active" id="modeLfo" aria-pressed="true"><span class="mode-icon">∿</span><span><b>LFO Mode</b><small>CLASSIC &amp; SIMPLE</small></span></button>
+      </div>
+      <div class="advanced-hint" id="lfoAdvancedHint" hidden>
+        Need wavefolding, phase distortion or the harmonic editor?
+        <button type="button" id="hintOpenOsc">Open Oscillator Lab ↗</button>
       </div>
 
       <section class="side-panel" id="coreControls">
@@ -96,15 +100,7 @@
       <section class="panel wave-panel" id="wavePanel">
         <div class="panel-heading scope-heading"><div><span class="eyebrow">OSCILLOSCOPE</span><h2>Waveform Explorer</h2></div>
           <div class="scope-utilities">
-            <label class="headroom-control" for="headroomMode">HEADROOM
-              <select id="headroomMode" title="Auto: LFO full range, oscillator maximum safe peak, morph banks preserve relative amplitudes">
-                <option value="auto">Auto · smart scaling</option>
-                <option value="full">Full Vpp · fit to range</option>
-                <option value="audio">Audio · max safe peak</option>
-                <option value="bank">Bank · preserve morph levels</option>
-              </select>
-            </label>
-            <button type="button" id="quickDownloadAllBtn" class="primary-button compact-primary">↓ Download All</button>
+            <button type="button" id="scopeModeToggle" class="secondary-button compact-mode" title="Switch between LFO and Oscillator Lab">↗ Open Oscillator Lab</button>
           </div>
         </div>
         <div class="wave-canvas-wrap"><canvas id="waveCanvas" width="1200" height="370" aria-label="Waveform display; drag orange handle to change X/Y warp" role="img"></canvas><span class="scope-label scope-top">+1.00</span><span class="scope-label scope-mid">0.00</span><span class="scope-label scope-bottom">−1.00</span><span class="scope-badge" id="scopeBadge">DRAG TO WARP ↗</span></div>
@@ -142,11 +138,11 @@
           <div class="export-item" data-control="lutSize"></div>
           <div class="export-item" data-control="minDac"></div>
           <div class="export-item" data-control="maxDac"></div>
+          <p class="dac-caution" id="dacCaution">4096 is above the 12-bit maximum of 4095. Use 16-bit output, or change Max DAC to 4095 for a 12-bit Teensy DAC.</p>
           <div class="export-item"><label for="bitDepth">Unsigned DAC resolution</label><select id="bitDepth"><option value="8">8-bit</option><option value="10">10-bit</option><option value="12" selected>12-bit</option><option value="16">16-bit</option></select></div>
           <div class="export-item"><label for="wavRate">WAV sample rate</label><select id="wavRate"><option value="22050">22,050 Hz</option><option value="44100" selected>44,100 Hz</option><option value="48000">48,000 Hz</option></select></div>
         </div>
         <div class="export-actions">
-          <button type="button" class="primary-button" id="exportAllBtn">↓ Download All (.zip)</button>
           <button type="button" class="secondary-button" id="exportZipBtn">↓ LUT + PNG (.zip)</button>
           <button type="button" class="secondary-button" id="exportTxtBtn">↓ Arduino LUT .txt</button>
           <button type="button" class="secondary-button" id="exportPngBtn">↓ Waveform .png</button>
