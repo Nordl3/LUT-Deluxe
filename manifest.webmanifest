@@ -1,0 +1,11 @@
+{
+  "name": "LUT Deluxe — Waveform Laboratory",
+  "short_name": "LUT Deluxe",
+  "description": "Offline waveform creation, synth audio preview and Arduino LUT export",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#090e16",
+  "theme_color": "#0b1019",
+  "icons": [{"src": "./icon.svg", "type": "image/svg+xml", "sizes": "any", "purpose": "any maskable"}]
+}
