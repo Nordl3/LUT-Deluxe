@@ -1,61 +1,104 @@
-# LUT Deluxe Ultimate — Four-Voice Wavetable Studio
+# LUT Deluxe
 
-**Release 2.0.0 (local-test build)**. This is a fully local, dependency-free static web application. The release replaces the main page with a coherent four-channel design studio. The older LUT Deluxe 1.3 editor and all its original export tools are retained under **Classic Lab**.
+**Design the wave. Shape the harmonics. Build an instrument.**
 
-## Start on Windows
+### [▶ LAUNCH LUT DELUXE — OPEN THE LIVE STUDIO](https://nordl3.github.io/LUT-Deluxe/)
 
-Unzip the project and open Command Prompt **in the directory containing `index.html`**:
+LUT Deluxe is a browser-based waveform and wavetable design studio for synthesizer enthusiasts, sound designers and anyone who enjoys exploring what an oscillator can do. Create a single cycle, turn it into an evolving wavetable, hear it immediately, then export it for use elsewhere.
+
+**No installation, account, DAW or plug-ins required.** Open the link and start making waves. Sound generation and editing run locally in your browser; your audio and projects aren't uploaded to a server.
+
+It began as a waveform generator for a homemade **four-channel Teensy Eurorack module**, but the goal is broader: make interesting, playable sounds and useful wavetables for hardware, software synths and experiments that don't fit neatly into either category.
+
+## Four voices. One bigger sound.
+
+The **Ultimate Studio** treats four independent outputs as parts of one instrument. They can reinforce each other, occupy different parts of the spectrum, beat against each other, form chords or slowly evolve into something else entirely.
+
+Start with one of **21 four-voice scenes**, then change anything you like:
+
+| Scene | What the four voices do |
+| --- | --- |
+| **Drawbar Architecture** | Organ-inspired 16′, 8′, 5⅓′ and 4′ relationships. |
+| **Interleaved Harmonics** | Different harmonic sets on each output, ready to be recombined. |
+| **Four-Band Spectrum** | Split a tone into four spectral regions—ideal for separate VCAs and filters. |
+| **Quadrature Orbit** | Four phase-related signals at 0°, 90°, 180° and 270°. |
+| **Reese Conspiracy** | Sub-bass foundation and detuned, beating layers. |
+| **Fifths & Sevenths** | Four voices using musical frequency ratios. |
+| **Vowel Quartet** | Formant-rich tones that change character as they evolve. |
+| **Omni · Four Voices** | Bass, synth, keys and strings working together. |
+
+These are **starting points, not fixed channel assignments**. Rename the voices, swap their waveform families, adjust musical ratios and phase, or choose how their morph positions move together. The four outputs can be entirely different—or carefully related.
+
+Imagine sending each output to its own VCA or filter, then mixing them back together. One patch can move from a simple fundamental to an enormous shifting harmonic texture without changing the source waveforms. The browser lets you audition the combination before you wire anything up.
+
+## Make waves worth playing
+
+- **Wave Editor:** Draw your own periodic waves, build them from 32 independently adjustable harmonic amplitudes and phases, and apply waveform shaping.
+- **Evolution Lab:** Animate brightness, folding, formants, FM, pulse width, phase warping and saturation across an **8–128-frame** wavetable bank.
+- **Complementary morphing:** Move four voices together, in mirrored pairs, in a staggered progression or in an offset orbit.
+- **Automatic full-scale waveforms:** Generated waves are brought back to full peak-to-peak range after shaping, so a small edit doesn't mean another round of gain adjustment. Voice mixer levels remain separately adjustable.
+- **Hear it as you work:** Audition the four-voice stereo mix with a browser keyboard, frequency control and animated morphing.
+- **See what you're making:** Switch between waveform, harmonic spectrum and bank views, with waveform measurements alongside.
+- **Audio resynthesis:** Import audio and extract periodic waveframes as starting material for new banks.
+- **Save your work:** Export a project JSON and load it again later. The studio also keeps browser-local project state.
+
+Maximum peak-to-peak level is not the same as equal perceived loudness: different waveforms can have very different RMS levels. LUT Deluxe exposes the waveform measurements instead of hiding that distinction.
+
+## Try it
+
+1. **[Open the live studio](https://nordl3.github.io/LUT-Deluxe/)** and choose a scene from **Scene Library**.
+2. Press **Listen**. Select each DAC lane to hear how the four parts fit together.
+3. Try different waveform families and frequency ratios in the **Voice Inspector**.
+4. Open **Wave Editor** to sculpt a single wave, or **Evolution Lab** to develop a complete moving bank.
+5. Head to **Export Studio** when you've made something worth keeping.
+
+The **Classic Lab** is also available from the top bar. It retains the original LFO and oscillator editors, waveform presets and single-cycle export tools.
+
+## Take your sounds somewhere else
+
+| Export | What you get |
+| --- | --- |
+| **Teensy four-channel bank** | ZIP containing C++ headers, binary wave banks, morph-correction data and a project manifest. |
+| **Serum / Vital-oriented wavetables** | Four packed mono floating-point WAV banks, using 2,048 samples per frame. |
+| **Audio WAV** | A rendered stereo audition of the four-voice arrangement. |
+| **PNG / SVG** | High-resolution waveform images for reference or sharing. |
+| **Project JSON** | Editable project settings and waveform data for returning to the studio. |
+| **Classic Lab exports** | Single-cycle Arduino LUT text, signed PCM, WAV, PNG and paired LUT/image ZIPs. |
+
+The packed WAV exports are designed for wavetable-synth workflows. **Import behaviour has not yet been verified in every Serum/Vital version**, so check the resulting frames in your synth before relying on a bank in a finished project.
+
+## The Eurorack connection
+
+LUT Deluxe grew out of the [Teensy Morphing LFO](https://github.com/Nordl3/Teensy_Morphing_LFO): a homemade four-output Eurorack module with a Teensy microcontroller and two dual-channel DACs. The idea is to design useful control-voltage waves, then push further into musical audio-rate wavetables and sets of related oscillator voices.
+
+The app is also useful **without that module**. Nothing needs to be connected to design, audition, save or export a waveform.
+
+**Hardware compatibility note:** The Ultimate Studio's four-voice ratios, phase relationships and multi-frame banks are designed for a newer Teensy DDS firmware. They are **not directly playable by the original V1.04 firmware**. The analogue VCAs, filters and mixers shown as patching possibilities are external Eurorack equipment, not circuitry inside the existing module. The generated bank formats are documented in [ULTIMATE_BANK_FORMAT.md](ULTIMATE_BANK_FORMAT.md).
+
+---
+
+## Running it locally (optional)
+
+The live version is the easiest way to use LUT Deluxe. To run a downloaded source copy, extract it, open Command Prompt in the folder containing `index.html`, and enter:
 
 ```cmd
 py -m http.server 8000
 ```
 
-If `py` is not available, use `python -m http.server 8000`. Open **http://localhost:8000** in your browser. Stop the server with Ctrl+C. Do not open the HTML directly from disk because JavaScript module imports require an HTTP origin.
+Then open **http://localhost:8000**. If your Windows installation uses `python` instead of `py`, substitute `python` in the command. Press **Ctrl+C** to stop the server. Opening `index.html` directly from a `file://` path may prevent its JavaScript modules loading.
 
-## Studio overview
+The project is ordinary HTML, CSS and JavaScript. No build step is needed for the website.
 
-The four physical DAC channels are **unassigned instruments**. Scene labels are **editable roles**, not fixed outputs. There are 21 deliberately complementary four-output ensembles, including:
+## Optional Windows desktop EXE
 
-- **Harmonic Constellation** — root, just fifth, octave and upper halo.
-- **Drawbar Architecture** — 16′, 8′, 5⅓′ and 4′ harmonic relationships.
-- **Quadrature Orbit** — same oscillator frequency and shape, at 0°, 90°, 180° and 270° phase offsets.
-- **Interleaved Harmonics** — four non-overlapping sets of partials, independently recombinable.
-- **Four-Band Spectrum** — four non-overlapping harmonic regions, useful with downstream VCAs/filters/mixer.
-- **Fifths & Sevenths** — tuning ratios 1:1, 5:4, 3:2 and 7:4.
-- **Reese Conspiracy** — sub foundation and tightly detuned beating oscillators.
-- **Vowel Quartet, Crystal Lattice, West Coast Laboratory, Pulse Mathematics, Strings in the Machine, Slow-Motion Galaxy** — additional complementary approaches.
-- **Omni • Four voices** — the original Bass/Synth/Keys/Strings inspiration, just one scene.
+The **web version is the main release**. For those who prefer a standalone Windows window, the `desktop/` folder includes a Python/pywebview wrapper and a PyInstaller build script. This creates a local application window around the same interface; it isn't a separate sound engine or a VST plug-in.
 
-Each channel has its own family, morph position, gain, relative frequency ratio, cycle phase, octave, semitone, detune, stereo position (browser only), digital low-pass, and level-motion depth/speed (browser only). Outputs are independent and designed to be mixed externally through VCAs and filters. The preview is a separate stereo simulation and **does not imply that the current hardware has new analogue VCAs or routing**.
+With Python and its `py` launcher installed on Windows:
 
-The main studio includes a scope/spectrum/wavetable view, a four-lane patch mixer, a frequency keyboard, and four-way morph linkage modes: parallel, mirrored, staggered and quarter-cycle orbit.
+1. Download and extract the repository.
+2. Run `desktop\build_windows.bat`.
+3. The script installs its Python build dependencies and attempts to create `dist\LUTDeluxe.exe`.
 
-## Advanced editors
+This is an **optional, experimental build path**, not a prebuilt installer. It uses Microsoft Edge WebView2, and the resulting EXE and its file-save dialogs should be tested on the target Windows PC.
 
-- **Wave Editor** — freehand periodic waveform drawing, additive construction from 32 partial magnitudes and phases, plus waveform selection and shapers.
-- **Evolution Lab** — independent start/end values for brightness, wavefold, formants, FM, pulse width, phase warp and saturation, interpolated into 8–128-frame banks. Frame sizes 256, 512, 1024 and 2048 samples.
-- **Level management** — automatically restores full peak-to-peak swing after each generated waveform and compensates inter-frame level loss during playback. Optional DC-free peak-normalized and unprocessed modes remain available. Note that maximum Vpp does **not** guarantee the same RMS/loudness between timbres.
-- **Audio resynthesis** — import supported audio files and extract periodic waveframes using an approximate supplied fundamental frequency. This is a starting point for wavetable editing, **not** a full pitch tracker or commercial resynthesis suite.
-- **Projects** — save/import JSON with all four voice settings, editable partials, drawn waveforms, and imported frames. Browser-local autosave is also supported.
-
-## Exports
-
-- **Four-channel Teensy ZIP** — `.h` C++ banks, four little-endian `.bin` files, four per-transition amplitude-correction `.morph.f32` files, and a JSON manifest with role, phase, pitch-ratio and format metadata. Hardware ranges: 0–3090, 0–4095, or future 16-bit DAC 0–65535. Optional octave-dependent band-limited versions are available. See [ULTIMATE_BANK_FORMAT.md](ULTIMATE_BANK_FORMAT.md).
-- **Serum/Vital-oriented wavetable ZIP** — four separate mono packed, 32-bit float WAV files, each containing consecutive 2048-sample frames. Serum-tagged export uses a `clm ` chunk. **Structure tested; import interpretation must still be verified in the actual synths.**
-- **Audio WAV** — rendered stereo four-voice audition mix (3, 6 or 12 seconds).
-- **Images** — selected wave as 1600×700 PNG or scalable SVG.
-- **Classic Lab** — the original single-cycle Arduino TXT, PNG, LUT+PNG ZIP, WAV, PCM and 50 preset exports remain accessible via `classic.html`.
-
-## Hardware boundaries
-
-This release **does not include the new Teensy DDS playback firmware**. The existing V1.04 sketch cannot directly load the new multi-frame bank format, and independent ratios/phase for all DACs will not operate on the existing firmware. These changes are being designed for the future firmware using the existing Teensy 4.0 / two MCP4822 module first.
-
-The current hardware has a shared RATE CV and the proposed browser preview has independently set frequency ratios. Hardware audio bandwidth, reliable 1V/oct tracking, DAC timing and anti-aliasing have **not** been bench-verified. Higher sample rates and multiband exports also consume substantial flash; check the actual Teensy 4.0 firmware/flash budget before use.
-
-## Development and verification
-
-Run `npm test` with Node.js 20+ to run the included waveform, bank, export, harmonic-complement and amplitude-compensation regression tests (29 tests at packaging). The original Classic Lab engine tests are retained. The build is pure HTML/CSS/JavaScript with no npm install step for end users.
-
-Browser automation could not be executed in the restricted build environment because navigation was blocked by administrator policy. Verify the interface and audio/download flows with the local server above before publishing. The release is **not yet a production-verified firmware+hardware combination**.
-
-To publish to [Nordl3/LUT-Deluxe](https://github.com/Nordl3/LUT-Deluxe), upload the extracted **contents** of this folder to the repository root after testing locally. `index.html` is now Ultimate Studio; `classic.html` remains the prior editor.
+Developers can run the included JavaScript regression tests with `npm test` (Node.js 20+). The source is at [github.com/Nordl3/LUT-Deluxe](https://github.com/Nordl3/LUT-Deluxe).
