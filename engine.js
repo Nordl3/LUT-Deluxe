@@ -116,7 +116,7 @@ export function resamplePeriodic(wave,newSize){
   for(let i=0;i<newSize;i++){const t=i*oldN/newSize,a=Math.floor(t),f=t-a;out[i]=wave[a%oldN]*(1-f)+wave[(a+1)%oldN]*f;}
   return out;
 }
-function fft(re,im,inverse=false){
+export function fft(re,im,inverse=false){
   const n=re.length;
   for(let i=1,j=0;i<n;i++){
     let bit=n>>1;

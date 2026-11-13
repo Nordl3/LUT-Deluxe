@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1019">
+  <meta name="description" content="LUT Deluxe: a free, browser-based waveform synthesis laboratory for LFOs, wavetable oscillators, and Teensy LUT export.">
+  <title>LUT Deluxe — Waveform Laboratory</title>
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css?v=1.3.0">
+  <script defer type="module" src="./app.js?v=1.3.0"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand-wrap">
+      <div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 48 48" fill="none"><path d="M2 24C10 24 8 8 15 8S20 40 25 40s7-32 12-32 4 16 9 16" stroke="currentColor" stroke-width="3.3" stroke-linecap="round"/><circle cx="39" cy="10" r="3" fill="#be8dfc"/></svg></div>
+      <div><div class="brand">LUT <span>Deluxe</span><b class="brand-dot">.</b></div><div class="brand-caption">WAVEFORM LABORATORY <span class="caption-version">v1.3.0</span></div></div>
+    </div>
+    <div class="header-right"><span class="running-pill"><span></span> 100% LOCAL DSP</span>
+      <button type="button" class="quiet-button" id="undoBtn" title="Undo last control change">↶ Undo</button>
+      <button type="button" class="quiet-button" id="resetBtn" title="Reset waveform and workspace to default LFO settings">↺ Reset</button>
+      <a class="github-link" href="https://github.com/Nordl3/LUT-Deluxe" target="_blank" rel="noreferrer" title="Open LUT Deluxe GitHub repository">GitHub ↗</a>
+    </div>
+  </header>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="mode-group" role="group" aria-label="Waveform mode">
+        <button type="button" class="mode-btn" id="modeOsc" aria-pressed="false"><span class="mode-icon">⌁</span><span><b>Oscillator Lab</b><small>FULL SYNTHESIS ENGINE</small></span></button>
+        <button type="button" class="mode-btn active" id="modeLfo" aria-pressed="true"><span class="mode-icon">∿</span><span><b>LFO Mode</b><small>CLASSIC &amp; SIMPLE</small></span></button>
+      </div>
+      <div class="advanced-hint" id="lfoAdvancedHint" hidden>
+        Need wavefolding, phase distortion or the harmonic editor?
+        <button type="button" id="hintOpenOsc">Open Oscillator Lab ↗</button>
+      </div>
+
+      <section class="side-panel" id="coreControls">
+        <div class="section-title"><span class="section-dot cyan"></span><h2>CORE OSCILLATOR</h2><span class="section-index">01</span></div>
+        <label class="field-row"><span class="field-label">Waveform</span><select id="coreType"><option>Sine</option><option>Triangle</option><option>Square</option><option>Ramp Up</option><option>Ramp Down</option><option>Additive</option></select></label>
+        <div data-control="coreFreq"></div>
+        <div data-control="corePhase"></div>
+        <div data-control="rampSteepness"></div>
+      </section>
+
+      <section class="side-panel" id="modControls">
+        <div class="section-title"><span class="section-dot purple"></span><h2>MODULATION</h2><span class="section-index">02</span></div>
+        <label class="field-row"><span class="field-label">Modulator</span><select id="modType"><option>Sine</option><option>Triangle</option><option>Square</option><option>Ramp Up</option><option>Ramp Down</option></select></label>
+        <div data-control="modFreq"></div>
+        <div data-control="modPhase"></div>
+        <div data-control="modAmplitude"></div>
+        <div data-control="modFadeIn"></div>
+        <div data-control="modFadeOut"></div>
+        <div data-control="dutyCycle"></div>
+      </section>
+
+      <section class="side-panel advanced-only" id="geometryControls">
+        <div class="section-title"><span class="section-dot gold"></span><h2>WAVE GEOMETRY</h2><span class="section-index">03</span></div>
+        <p class="section-help">Drag the amber handle on the main waveform display, or set exact numbers below.</p>
+        <div data-control="pivotX"></div>
+        <div data-control="pivotY"></div>
+        <div data-control="phaseDist"></div>
+        <div data-control="syncRatio"></div>
+      </section>
+
+      <section class="side-panel advanced-only" id="shapingControls">
+        <div class="section-title"><span class="section-dot coral"></span><h2>SHAPING &amp; FOLDING</h2><span class="section-index">04</span></div>
+        <div data-control="waveFold"></div>
+        <div data-control="bend"></div>
+        <div data-control="drive"></div>
+        <label class="check-line"><input type="checkbox" id="removeDc" checked><span>Remove DC offset <small>For audio oscillator tables</small></span></label>
+        <label class="check-line"><input type="checkbox" id="bandLimit"><span>Band-limit at preview pitch <small>Applies to audio preview and export</small></span></label>
+        <p class="micro-note">Band-limiting one LUT at one pitch is not a substitute for multi-resolution mipmapped tables in a Teensy audio oscillator.</p>
+      </section>
+
+      <section class="side-panel advanced-only" id="harmonicsSection">
+        <div class="section-title"><span class="section-dot cyan"></span><h2>ADDITIVE HARMONICS</h2><span class="section-index">05</span></div>
+        <p class="section-help">Select <b>Additive</b> as the core waveform to hear these partials.</p>
+        <div id="harmonicsControls" class="harmonic-grid"></div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <div class="workspace-top"><div><div class="eyebrow">THE SOUND IS IN THE SHAPE</div><h1 id="workspaceTitle">Oscillator Laboratory</h1><p id="workspaceDesc">Sculpt a single cycle, explore its harmonics, and export it for your synth.</p></div>
+        <div class="workspace-actions"><button type="button" class="quiet-button" id="randomBtn">⚄ Randomise</button><button type="button" class="quiet-button" id="savePresetBtn">＋ Save preset</button></div>
+      </div>
+
+      <nav class="quick-nav" aria-label="Jump to workspace sections">
+        <a href="#wavePanel">Scope</a>
+        <a href="#coreControls">Core</a>
+        <a href="#modControls">Modulation</a>
+        <a class="advanced-only" href="#geometryControls">Geometry</a>
+        <a class="advanced-only" href="#shapingControls">Shaping</a>
+        <a class="advanced-only" href="#harmonicsSection">Harmonics</a>
+        <a href="#auditionSection">Listen</a>
+        <a class="advanced-only" href="#morphSection">Morphing</a>
+        <a class="advanced-only" href="#bankBuilderSection">VCO Banks</a>
+        <a href="#presetSection">Presets</a>
+        <a href="#exportSection">Export</a>
+      </nav>
+
+      <section class="panel wave-panel" id="wavePanel">
+        <div class="panel-heading scope-heading"><div><span class="eyebrow">OSCILLOSCOPE</span><h2>Waveform Explorer</h2></div>
+          <div class="scope-utilities">
+            <button type="button" id="scopeModeToggle" class="secondary-button compact-mode" title="Switch between LFO and Oscillator Lab">↗ Open Oscillator Lab</button>
+          </div>
+        </div>
+        <div class="wave-canvas-wrap"><canvas id="waveCanvas" width="1200" height="370" aria-label="Waveform display; drag orange handle to change X/Y warp" role="img"></canvas><span class="scope-label scope-top">+1.00</span><span class="scope-label scope-mid">0.00</span><span class="scope-label scope-bottom">−1.00</span><span class="scope-badge" id="scopeBadge">DRAG TO WARP ↗</span></div>
+        <div class="wave-foot"><span id="waveDescription">SINE • AUDIO OSCILLATOR</span><span id="waveStats">4096 SAMPLES • 1 CYCLE</span></div>
+        <div class="diagnostic-line" id="diagnosticLine" aria-live="off">DC — · RMS — · Vpp — · loop seam —</div>
+      </section>
+
+      <div class="analysis-row">
+        <section class="panel spectrum-panel" id="spectrumSection">
+          <div class="panel-heading"><div><span class="eyebrow">FREQUENCY DOMAIN</span><h2>Harmonic Spectrum</h2></div><span class="panel-meta">FFT · RELATIVE dB</span></div>
+          <canvas id="spectrumCanvas" width="700" height="205" aria-label="Harmonic spectrum"></canvas>
+          <div class="mini-footer"><span>FUNDAMENTAL</span><span>HARMONICS →</span></div>
+        </section>
+        <section class="panel audition-panel" id="auditionSection">
+          <div class="panel-heading"><div><span class="eyebrow">LIVE AUDITION</span><h2>Listen to your wave</h2></div><span class="audio-indicator" id="audioIndicator">● STOPPED</span></div>
+          <div class="audition-row"><button class="play-button" type="button" id="playBtn" aria-label="Play oscillator">▶</button><div class="audition-detail"><b id="audioNote">A4</b><small>TABLE LOOP</small></div><div class="audition-hz" id="audioHz">220 <small>Hz</small></div></div>
+          <div data-control="previewHz"></div>
+          <div data-control="volume"></div>
+          <p class="micro-note">Browser audio preview (turn volume down first). Frequencies represent table repeats per second; multiple cycles per table increase the perceived pitch.</p>
+        </section>
+      </div>
+
+      <section class="panel advanced-only">
+        <div class="panel-heading"><div><span class="eyebrow">WAVETABLE ANIMATION</span><h2>Morphing Studio</h2></div><span class="panel-meta">A ↔ B</span></div>
+        <p class="section-help">Capture any two generated waveforms as A and B, then audition and export interpolated frames. The frames are phase-aligned by sample index.</p>
+        <div class="morph-toolbar"><button type="button" class="secondary-button" id="captureABtn">Capture Wave A</button><button type="button" class="secondary-button" id="captureBBtn">Capture Wave B</button><span id="captureStatus" class="capture-status">A: — &nbsp; B: —</span></div>
+        <div data-control="morphPosition"></div><div data-control="bankFrames"></div>
+        <label class="check-line compact"><input id="morphEnabled" type="checkbox"><span>Preview A/B morph (also affects single-wave exports)</span></label>
+        <button type="button" class="secondary-button full-button" id="bankDownloadBtn">↓ Download wavetable bank (.zip)</button>
+      </section>
+
+      <section class="panel advanced-only bank-panel" id="bankBuilderSection">
+        <div class="panel-heading"><div><span class="eyebrow">NEW · V1.3 · SYNTH TOOLKIT</span><h2>Musical VCO Bank Builder</h2></div><span class="panel-meta">TEENSY 4.0 READY DATA</span></div>
+        <p class="section-help">Make coherent musical morph banks, or build a bank between your captured A/B waves. Export a Teensy-targeted <code>.h</code> array, compact <code>.bin</code>, and matching metadata. Existing single-LUT exports remain unchanged.</p>
+        <div class="bank-form">
+          <label class="export-item"><span>Bank source</span><select id="bankSource"><option value="musical">Musical waveform families</option><option value="captured">My captured Wave A → B</option></select></label>
+          <label class="export-item"><span>Musical character</span><select id="bankStyle"></select></label>
+          <label class="export-item"><span>Bank target</span><select id="bankTarget"><option value="teensy3090">Teensy MCP4822 · 0–3090 (original)</option><option value="teensy4095">Teensy MCP4822 · 0–4095</option><option value="future16">Future 16-bit DAC · 0–65535</option></select></label>
+          <label class="export-item"><span>Bank frames</span><select id="bankFrameCount"><option value="8">8 frames</option><option value="16" selected>16 frames</option><option value="32">32 frames</option><option value="64">64 frames</option></select></label>
+          <label class="export-item"><span>Samples per frame</span><select id="bankSampleCount"><option value="256">256</option><option value="512" selected>512 (existing Teensy)</option><option value="1024">1024</option><option value="2048">2048</option></select></label>
+          <label class="export-item"><span>Output update frequency</span><select id="bankSampleRate"><option value="44100">44.1 kHz</option><option value="48000" selected>48 kHz</option><option value="96000">96 kHz</option></select></label>
+          <label class="export-item"><span>A/B morph algorithm</span><select id="bankMorphMethod"><option value="spectral" selected>Spectral (harmonics + phase)</option><option value="linear">Sample crossfade</option></select></label>
+          <label class="export-item"><span>Amplitude strategy</span><select id="bankLevel"><option value="peak" selected>Peak safe · full peak</option><option value="full">Full Vpp · may add DC</option><option value="rms">RMS target · peak limited</option><option value="preserve">Preserve raw levels</option></select></label>
+        </div>
+        <div class="bank-options">
+          <label class="check-line compact"><input id="bankAlign" type="checkbox" checked><span>Align captured waves by fundamental phase before morphing</span></label>
+          <label class="check-line compact"><input id="bankOctaves" type="checkbox" checked><span>Include octave-aware band-limited tables (larger export, less aliasing)</span></label>
+        </div>
+        <div class="bank-summary" id="bankEstimate">16 frames × 512 samples · estimated size —</div>
+        <div class="bank-actions">
+          <button type="button" class="secondary-button" id="bankPreviewBtn">▶ Preview bank on scope</button>
+          <button type="button" class="primary-button" id="teensyExportBtn">↓ Export Teensy VCO Bank (.zip)</button>
+        </div>
+        <div class="bank-preview" id="bankPreviewControls" hidden>
+          <div class="bank-preview-head"><b>Bank frame explorer</b><span id="bankFrameLabel">Frame 1 of 16</span></div>
+          <input type="range" id="bankFrameSlider" min="0" max="15" value="0" step="1" aria-label="Preview morph frame">
+          <label class="export-item"><span>Pitch band to inspect</span><select id="bankBandSelect"></select></label>
+          <p class="micro-note" id="bankPreviewNote">Bank preview shows the actual generated frames before DAC quantization.</p>
+        </div>
+        <p class="micro-note">Bank files target the <b>planned DDS firmware</b>, not the unchanged V1.04 sketch. A pitch band is selected using the highest pitch it supports; oscillator pitch and analogue output quality still need hardware testing.</p>
+      </section>
+
+      <section class="panel export-panel" id="exportSection">
+        <div class="panel-heading"><div><span class="eyebrow">OUTPUT ENGINE</span><h2>Export Laboratory</h2></div><div class="export-ready"><span></span> READY TO EXPORT</div></div>
+        <div class="export-inputs">
+          <div class="export-item"><label for="baseName">File / array prefix</label><input id="baseName" type="text" value="myLUT" maxlength="36" spellcheck="false"></div>
+          <div class="export-item" data-control="lutSize"></div>
+          <div class="export-item" data-control="minDac"></div>
+          <div class="export-item" data-control="maxDac"></div>
+          <p class="dac-caution" id="dacCaution">4096 is above the 12-bit maximum of 4095. Use 16-bit output, or change Max DAC to 4095 for a 12-bit Teensy DAC.</p>
+          <div class="export-item"><label for="bitDepth">Unsigned DAC resolution</label><select id="bitDepth"><option value="8">8-bit</option><option value="10">10-bit</option><option value="12" selected>12-bit</option><option value="16">16-bit</option></select></div>
+          <div class="export-item"><label for="wavRate">WAV sample rate</label><select id="wavRate"><option value="22050">22,050 Hz</option><option value="44100" selected>44,100 Hz</option><option value="48000">48,000 Hz</option></select></div>
+        </div>
+        <div class="export-actions">
+          <button type="button" class="secondary-button" id="exportZipBtn">↓ LUT + PNG (.zip)</button>
+          <button type="button" class="secondary-button" id="exportTxtBtn">↓ Arduino LUT .txt</button>
+          <button type="button" class="secondary-button" id="exportPngBtn">↓ Waveform .png</button>
+          <button type="button" class="secondary-button" id="exportWavBtn">↓ Audio .wav</button>
+          <button type="button" class="secondary-button" id="exportPcmBtn">↓ Signed PCM .pcm</button>
+          <button type="button" class="secondary-button" id="exportPcmTxtBtn">↓ Signed PCM .txt</button>
+        </div>
+
+      </section>
+
+      <section class="panel preset-panel" id="presetSection">
+        <div class="panel-heading"><div><span class="eyebrow">YOUR SOUND COLLECTION</span><h2>Presets &amp; Sharing</h2></div></div>
+        <div class="preset-actions">
+          <select id="presetCategory" aria-label="Filter preset category"></select>
+          <select id="presetSelect" aria-label="Choose preset"></select>
+          <button type="button" class="secondary-button" id="loadPresetBtn">Load</button>
+          <button type="button" class="secondary-button" id="exportPresetBtn">↓ Preset JSON</button>
+          <label class="secondary-button file-button" for="importPresetInput">↑ Import JSON</label>
+          <input type="file" id="importPresetInput" accept=".json,application/json" class="sr-only">
+        </div>
+        <p class="section-help">Presets and the export counter are stored in this browser. Export JSON to share settings between machines.</p>
+      </section>
+
+      <footer><b>LUT Deluxe</b> · Waveform design for LFOs, Teensy oscillators and wavetable synthesis. <span>No account. No server. No tracking.</span></footer>
+    </main>
+  </div>
+  <div id="status" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+</body>
+</html>

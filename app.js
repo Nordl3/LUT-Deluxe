@@ -1,7 +1,9 @@
 import {
   DEFAULTS, TYPES, renderWave, morphWave, normalizeHeadroom, makeArduinoText,
   makeSignedText, makePCM, makeWav, safePrefix, zipFiles, spectrum
-} from "./engine.js?v=1.2.1";
+} from "./engine.js?v=1.3.0";
+import {MUSICAL_BANKS, TARGETS, makeBank, measurements, estimatedBytes,
+  bankManifest, makeBankHeader, makeBankBinary} from "./bank.js?v=1.3.0";
 
 const $=id=>document.getElementById(id);
 const clone=v=>JSON.parse(JSON.stringify(v));
@@ -9,6 +11,10 @@ const initial=clone(DEFAULTS);
 let p=clone(DEFAULTS),mode="lfo",wave=null,renderPending=false,playing=false;
 let audioCtx=null,audioSource=null,audioGain=null,audioRefresh=null;
 let capturedA=null,capturedB=null,dragging=false,history=[],lastHistoryTime=0,lastHistoryKey="";
+let activeBank=null,previewBank=false,previewFrame=0,previewBand=0;
+const BANK_DEFAULTS=Object.freeze({source:'musical',style:'Analog Evolution',target:'teensy3090',frames:16,samples:512,
+  sampleRate:48000,morph:'spectral',level:'peak',align:true,bands:true});
+let bankOptions={...BANK_DEFAULTS};
 const storage={
   get(key,fallback){try{const v=localStorage.getItem(key);return v===null?fallback:JSON.parse(v);}catch{return fallback;}},
   set(key,val){try{localStorage.setItem(key,JSON.stringify(val));}catch{}}
@@ -86,6 +92,20 @@ const presetGroups={
     "Phase Runner":{mode:"osc",params:{coreType:"Sine",phaseDist:.85,modAmplitude:0}},
     "Warp Engine":{mode:"osc",params:{coreType:"Triangle",pivotX:.73,pivotY:-.35,bend:.68,phaseDist:.35,modAmplitude:0}},
     "Triple Sync":{mode:"osc",params:{coreType:"Ramp Up",syncRatio:3,drive:.2,modAmplitude:0}}
+  },
+  "Oscillator · Musical Instruments":{
+    "Deep Sub":{mode:"osc",params:{coreType:"Sine",drive:.08,modAmplitude:0,removeDc:true}},
+    "Warm Triangle Bass":{mode:"osc",params:{coreType:"Triangle",drive:.18,modAmplitude:0}},
+    "Acid Saw":{mode:"osc",params:{coreType:"Ramp Down",drive:.32,phaseDist:.11,modAmplitude:0}},
+    "Rounded Pulse":{mode:"osc",params:{coreType:"Square",pivotX:.35,drive:.14,modAmplitude:0}},
+    "Narrow Pulse":{mode:"osc",params:{coreType:"Square",pivotX:.16,drive:.08,modAmplitude:0}},
+    "Reed Lead":{mode:"osc",params:{coreType:"Additive",harmonics:[1,0,.57,0,.28,0,.12,0],modAmplitude:0,drive:.12}},
+    "Drawbar Organ":{mode:"osc",params:{coreType:"Additive",harmonics:[1,.68,.44,.16,.2,.1,.08,.05],modAmplitude:0}},
+    "Brass Stack":{mode:"osc",params:{coreType:"Additive",harmonics:[1,.58,.34,.22,.15,.09,.04,.02],drive:.34,modAmplitude:0}},
+    "Glassy Harmonics":{mode:"osc",params:{coreType:"Additive",harmonics:[.85,.03,.53,.04,.44,.03,.36,.02],modAmplitude:0}},
+    "Sync Bass":{mode:"osc",params:{coreType:"Ramp Up",syncRatio:2,drive:.22,modAmplitude:0}},
+    "Formant Lead":{mode:"osc",params:{coreType:"Additive",harmonics:[.8,.3,.05,.1,.5,.75,.4,.2],drive:.22,modAmplitude:0}},
+    "Soft String":{mode:"osc",params:{coreType:"Additive",harmonics:[1,.5,.28,.14,.09,.07,.04,.02],bend:.25,modAmplitude:0}}
   },
   "Oscillator · Harmonic & Textural":{
     "Harmonic Garden":{mode:"osc",params:{coreType:"Additive",modAmplitude:.12,phaseDist:0,waveFold:.3}},
@@ -200,11 +220,13 @@ function historySave(key){
 function setValue(key,value){
   if(p[key]===value)return;
   historySave(key);p[key]=value;
+  if(previewBank&&!(["previewHz","volume"].includes(key)))deactivateBankPreview();
   if(key==="lutSize"&&(capturedA||capturedB)){$("morphEnabled").checked=false;}
   updateInputs();requestRender();
 }
 function setMode(next){
   if(!["lfo","osc"].includes(next))return;
+  if(next==="lfo"&&previewBank)deactivateBankPreview();
   mode=next;document.body.classList.toggle("lfo-mode",mode==="lfo");
   $("modeOsc").classList.toggle("active",mode==="osc");$("modeLfo").classList.toggle("active",mode==="lfo");
   $("modeOsc").setAttribute("aria-pressed",String(mode==="osc"));$("modeLfo").setAttribute("aria-pressed",String(mode==="lfo"));
@@ -219,14 +241,16 @@ function setMode(next){
 function requestRender(){
   if(renderPending)return;renderPending=true;
   requestAnimationFrame(()=>{renderPending=false;try{
-    wave=renderWave(p,mode);
-    if(mode==="osc"&&$("morphEnabled").checked&&capturedA&&capturedB&&capturedA.length===wave.length&&capturedB.length===wave.length)
+    wave=previewBank&&activeBank?activeBank.tables[previewBand][previewFrame]:renderWave(p,mode);
+    if(!previewBank&&mode==="osc"&&$("morphEnabled").checked&&capturedA&&capturedB&&capturedA.length===wave.length&&capturedB.length===wave.length)
       wave=applyMorphHeadroom(morphWave(capturedA,capturedB,p.morphPosition));
     drawScope($("waveCanvas"),wave,false);drawSpectrum();
     const waveMin=Math.min(...wave.length<=16384?wave:[0]),waveMax=Math.max(...wave.length<=16384?wave:[0]);
     const vpp=Math.round(Math.max(0,waveMax-waveMin)*50);
     $("waveStats").textContent=`${wave.length.toLocaleString()} SAMPLES · ${vpp}% SWING`;
-    $("waveDescription").textContent=`${p.coreType.toUpperCase()} • ${mode==="lfo"?"CLASSIC LFO":"AUDIO OSCILLATOR"}`;
+    $("waveDescription").textContent=previewBank&&activeBank?`${activeBank.style.toUpperCase()} • BANK FRAME ${previewFrame+1}/${activeBank.frames}`:`${p.coreType.toUpperCase()} • ${mode==="lfo"?"CLASSIC LFO":"AUDIO OSCILLATOR"}`;
+    const m=measurements(wave);
+    $("diagnosticLine").textContent=`DC ${m.dc.toFixed(4)} · RMS ${m.rms.toFixed(3)} · Vpp ${m.vpp.toFixed(3)} · Loop seam ${m.seam.toFixed(4)}`;
     $("audioHz").innerHTML=`${p.previewHz} <small>Hz</small>`;
     $("audioNote").textContent=noteFromHz(p.previewHz);
     if(playing){clearTimeout(audioRefresh);audioRefresh=setTimeout(refreshAudio,120);}
@@ -403,6 +427,98 @@ async function exportBank(){
     afterExport(`${ident}_bank.zip exported`,result);
   }catch(e){showError(e);}
 }
+// VCO Bank Builder. The app's original single-LUT and A/B export flows remain intact.
+function setupBankBuilder(){
+  const styles=$("bankStyle");
+  for(const [name,description] of Object.entries(MUSICAL_BANKS)){
+    const option=document.createElement('option');option.value=name;option.textContent=name;option.title=description;styles.appendChild(option);
+  }
+  const fields={bankSource:'source',bankStyle:'style',bankTarget:'target',bankFrameCount:'frames',
+    bankSampleCount:'samples',bankSampleRate:'sampleRate',bankMorphMethod:'morph',bankLevel:'level',
+    bankAlign:'align',bankOctaves:'bands'};
+  for(const [id,key] of Object.entries(fields)){
+    const input=$(id);input.addEventListener('change',()=>{
+      bankOptions[key]=input.type==='checkbox'?input.checked: ['frames','samples','sampleRate'].includes(key)?Number(input.value):input.value;
+      if(previewBank){deactivateBankPreview();requestRender();}
+      updateBankOptions();
+    });
+  }
+  const persisted=storage.get('lutdeluxe_bank_options_v13',null);
+  if(persisted&&typeof persisted==='object'){
+    for(const [k,v] of Object.entries(BANK_DEFAULTS))if(typeof persisted[k]===typeof v)bankOptions[k]=persisted[k];
+  }
+  updateBankOptions();
+  $("bankPreviewBtn").addEventListener('click',()=>{
+    try{
+      if(previewBank){deactivateBankPreview();requestRender();return;}
+      activeBank=buildCurrentBank();previewBank=true;previewFrame=0;previewBand=activeBank.bandCount>1?1:0;
+      refreshBankPreviewControls();requestRender();msg(`Bank generated: ${activeBank.frames} frames; ${activeBank.bandCount} pitch layers.`);
+    }catch(e){showError(e);}
+  });
+  $("bankFrameSlider").addEventListener('input',e=>{
+    if(!previewBank||!activeBank)return;
+    previewFrame=Number(e.target.value);refreshBankPreviewControls();requestRender();
+  });
+  $("bankBandSelect").addEventListener('change',e=>{
+    previewBand=Number(e.target.value);refreshBankPreviewControls();requestRender();
+  });
+  $("teensyExportBtn").addEventListener('click',async()=>{
+    try{
+      const bank=previewBank&&activeBank?activeBank:buildCurrentBank();
+      const ident=exportIdentifier(),target=bankOptions.target,manifest=bankManifest(bank,target,ident);
+      const entries=[
+        [`${ident}_bank.h`,makeBankHeader(bank,target,ident)],
+        [`${ident}_bank.bin`,makeBankBinary(bank,target)],
+        [`${ident}_bank.json`,JSON.stringify(manifest,null,2)],
+        ['READ_ME.txt',`LUT Deluxe V1.3 Teensy VCO Bank\n\n${TARGETS[target].label}\n${bank.frames} frames, ${bank.samples} samples, ${bank.bandCount} bands.\n\nFiles:\n.h: C++ unsigned 16-bit bank data; include in the new DDS firmware.\n.bin: raw 16-bit LITTLE-ENDIAN samples. Layout [band][frame][sample].\n.json: dimensions, pitch-band upper limits and data format.\n\nIMPORTANT: The legacy Teensy_Morphing_LFO_V1_04 sketch cannot use bank arrays without firmware changes.\nPitch band 0 is UNFILTERED; use subsequent bands in audio-rate playback.\n`]
+      ];
+      const exported=await downloadBlob(zipFiles(entries),`${ident}_TeensyVCO.zip`);
+      afterExport(`${ident}_TeensyVCO.zip exported`,exported);
+    }catch(e){showError(e);}
+  });
+}
+function updateBankOptions(){
+  const controls={bankSource:'source',bankStyle:'style',bankTarget:'target',bankFrameCount:'frames',
+    bankSampleCount:'samples',bankSampleRate:'sampleRate',bankMorphMethod:'morph',bankLevel:'level',
+    bankAlign:'align',bankOctaves:'bands'};
+  for(const [id,key] of Object.entries(controls)){
+    const el=$(id),val=bankOptions[key];
+    if(el.type==='checkbox')el.checked=!!val;
+    else el.value=String(val);
+  }
+  const captured=bankOptions.source==='captured';
+  $("bankStyle").disabled=captured;$("bankMorphMethod").disabled=!captured;$("bankAlign").disabled=!captured;
+  const layers=bankOptions.bands?1+[40,80,160,320,640,1280,2560,5120,10240,20000].filter(v=>v<bankOptions.sampleRate*.47).length:1;
+  const estimated=bankOptions.frames*bankOptions.samples*layers*2;
+  $("bankEstimate").textContent=`${bankOptions.frames} frames × ${bankOptions.samples} samples × ${layers} pitch layers · ${(estimated/1024).toFixed(1)} KiB raw data`;
+  storage.set('lutdeluxe_bank_options_v13',bankOptions);
+}
+function buildCurrentBank(){
+  return makeBank({source:bankOptions.source,style:bankOptions.style,a:capturedA,b:capturedB,
+    frames:bankOptions.frames,samples:bankOptions.samples,sampleRate:bankOptions.sampleRate,
+    morph:bankOptions.morph,level:bankOptions.level,align:bankOptions.align,bands:bankOptions.bands});
+}
+function deactivateBankPreview(){
+  previewBank=false;activeBank=null;previewFrame=0;previewBand=0;
+  $("bankPreviewControls").hidden=true;
+  $("bankPreviewBtn").textContent='▶ Preview bank on scope';
+}
+function refreshBankPreviewControls(){
+  if(!activeBank)return;
+  $("bankPreviewControls").hidden=false;
+  $("bankPreviewBtn").textContent='↩ Return to waveform editor';
+  const slider=$("bankFrameSlider");slider.max=String(activeBank.frames-1);slider.value=String(previewFrame);
+  $("bankFrameLabel").textContent=`Frame ${previewFrame+1} of ${activeBank.frames}`;
+  const bandSel=$("bankBandSelect");bandSel.innerHTML='';
+  for(let j=0;j<activeBank.bandCount;j++){
+    const opt=document.createElement('option');opt.value=String(j);
+    opt.textContent=j===0?'Full spectrum (unfiltered)':`Band ${j}: up to ${activeBank.upperHz[j-1].toLocaleString()} Hz`;
+    bandSel.appendChild(opt);
+  }
+  bandSel.value=String(previewBand);
+  const m=measurements(activeBank.tables[previewBand][previewFrame]);
+  $("bankPreviewNote").textContent=`Preview before DAC quantization · Peak ${m.peak.toFixed(3)} · RMS ${m.rms.toFixed(3)} · ${estimatedBytes(activeBank)/1024|0} KiB raw bank`;
+}
 function capture(which){
   try{
     const standalone=renderWave(p,mode);
@@ -473,6 +589,11 @@ function loadPreset(obj){
   if(!["auto","full","audio","bank"].includes(next.headroomMode))next.headroomMode="auto";
   next.baseName=safePrefix(next.baseName);
   historySave("preset");p=next;capturedA=null;capturedB=null;
+  if(obj.bankOptions&&typeof obj.bankOptions==='object'){
+    for(const [k,v] of Object.entries(BANK_DEFAULTS))if(typeof obj.bankOptions[k]===typeof v)bankOptions[k]=obj.bankOptions[k];
+    updateBankOptions();
+  }
+  deactivateBankPreview();
   $("morphEnabled").checked=false;$("captureStatus").textContent="A: —   B: —";
   updateInputs();setMode(obj.mode==="lfo"?"lfo":"osc");
 }
@@ -597,6 +718,7 @@ function bindActions(){
   });
   $("resetBtn").addEventListener("click",()=>{
     historySave("reset");p=clone(DEFAULTS);capturedA=capturedB=null;
+    bankOptions={...BANK_DEFAULTS};updateBankOptions();deactivateBankPreview();
     $("morphEnabled").checked=false;$("captureStatus").textContent="A: —   B: —";
     updateInputs();setMode("lfo");msg("Controls reset to defaults.");
   });
@@ -623,7 +745,7 @@ function bindActions(){
   $("savePresetBtn").addEventListener("click",()=>{
     const name=prompt("Name this LUT Deluxe preset:","");
     if(!name?.trim())return;
-    savedPresets[name.trim().slice(0,50)]={mode,params:clone(p)};
+    savedPresets[name.trim().slice(0,50)]={mode,params:clone(p),bankOptions:{...bankOptions}};
     storage.set("lutdeluxe_presets",savedPresets);refreshPresets();
     $("presetSelect").value=`user:${name.trim().slice(0,50)}`;msg(`Preset '${name.trim()}' saved in this browser.`);
   });
@@ -643,7 +765,7 @@ function bindActions(){
   $("presetSelect").addEventListener("change",applySelectedPreset);
   $("exportPresetBtn").addEventListener("click",async()=>{
     try{
-      const json=JSON.stringify({app:"LUT Deluxe",version:1,mode,settings:p},null,2);
+      const json=JSON.stringify({app:"LUT Deluxe",version:"1.3.0",mode,settings:p,bankOptions},null,2);
       await downloadBlob(new Blob([json],{type:"application/json"}),`${safePrefix(p.baseName)}_preset.json`);
       msg("Preset JSON downloaded. You can import it on another computer.");
     }catch(e){showError(e);}
@@ -660,7 +782,7 @@ function bindActions(){
   const end=()=>{dragging=false;};canvas.addEventListener("pointerup",end);canvas.addEventListener("pointercancel",end);
   window.addEventListener("pagehide",stopAudio);
 }
-createControls();bindActions();refreshPresets();updateInputs();setMode("lfo");initFloatingScope();
+createControls();setupBankBuilder();bindActions();refreshPresets();updateInputs();setMode("lfo");initFloatingScope();
 if("serviceWorker" in navigator && location.protocol!=="file:"){
   window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
 }
